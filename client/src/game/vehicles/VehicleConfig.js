@@ -9,7 +9,7 @@ export const VEHICLES = {
     armor: 4,
     damage: 3,
     handling: 2,
-    description: 'A heavily armored mining vehicle with drill attachments.',
+    description: 'A bright yellow construction vehicle with a powerful drill attachment and reinforced chassis.',
     specialWeapon: 'Mine Layer',
     modelScale: 1.2
   },

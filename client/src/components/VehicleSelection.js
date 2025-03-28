@@ -1,4 +1,6 @@
 import { VEHICLES } from '../game/vehicles/VehicleConfig';
+import * as THREE from 'three';
+import { createVehicleMesh } from '../game/vehicles/VehicleMeshFactory';
 
 /**
  * Setup the vehicle selection UI
@@ -62,7 +64,7 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
     
     vehicleDisplay.innerHTML = `
       <h3 class="vehicle-name">${vehicleDescription}</h3>
-      <div class="vehicle-image" style="height: 150px; background-color: #333;"></div>
+      <div class="vehicle-image"></div>
       <div class="vehicle-stats">
         <div class="stat">
           <div>Speed</div>
@@ -151,6 +153,73 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
  * @param {HTMLElement} container The container to add the preview to
  */
 export function createVehiclePreview(vehicleId, container) {
-  // This would create a Three.js scene with the vehicle model
-  // For the initial implementation, we'll skip this
+  // Clear any existing preview
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+
+  // Set up a new THREE.js scene for this preview
+  const scene = new THREE.Scene();
+  
+  // Create ambient light
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+  scene.add(ambientLight);
+  
+  // Create directional light
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+  directionalLight.position.set(5, 5, 5);
+  scene.add(directionalLight);
+
+  // Add another directional light from different angle for better visibility
+  const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
+  backLight.position.set(-5, 3, -5);
+  scene.add(backLight);
+  
+  // Create vehicle mesh
+  const vehicleMesh = createVehicleMesh(vehicleId);
+  scene.add(vehicleMesh);
+  
+  // Create camera
+  const camera = new THREE.PerspectiveCamera(
+    40, // FOV
+    container.clientWidth / container.clientHeight, // Aspect ratio
+    0.1, // Near
+    1000 // Far
+  );
+  
+  // Position camera based on vehicle size
+  const bbox = new THREE.Box3().setFromObject(vehicleMesh);
+  const size = bbox.getSize(new THREE.Vector3());
+  const center = bbox.getCenter(new THREE.Vector3());
+  
+  // Position camera to view the vehicle at a good angle
+  camera.position.set(
+    center.x + size.x * 1.5,
+    center.y + size.y * 1.5,
+    center.z + size.z * 2.5
+  );
+  camera.lookAt(center);
+  
+  // Create renderer
+  const renderer = new THREE.WebGLRenderer({ 
+    antialias: true,
+    alpha: true 
+  });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setClearColor(0x000000, 0);
+  
+  // Append canvas to container
+  container.appendChild(renderer.domElement);
+  
+  // Auto-rotate animation
+  const rotateVehicle = () => {
+    if (!renderer.domElement.isConnected) return; // Stop if removed from DOM
+    
+    vehicleMesh.rotation.y += 0.01;
+    renderer.render(scene, camera);
+    requestAnimationFrame(rotateVehicle);
+  };
+  
+  // Start rotation animation
+  rotateVehicle();
 } 

@@ -35,7 +35,7 @@ export function createMap(scene) {
   
   // Create Washington Monument at south side - enlarged for more realism
   const washingtonMonument = createWashingtonMonument();
-  washingtonMonument.position.set(0, 0, mapLength/2 - 50); // 50 units from south edge (scaled up)
+  washingtonMonument.position.set(0, 0, mapLength/2 - 30); // Moved closer to south wall, 30 units from edge
   scene.add(washingtonMonument);
   objects.push(washingtonMonument);
   
@@ -52,17 +52,6 @@ export function createMap(scene) {
   // Add Capitol Building collider
   const capitolCollider = new THREE.Box3().setFromObject(capitolBuilding);
   colliders.push(capitolCollider);
-  
-  // Create trees and decorative elements
-  const decorations = createTreesAndDecorations(mapWidth, mapLength);
-  decorations.forEach(decoration => {
-    scene.add(decoration);
-    objects.push(decoration);
-    
-    // Add decoration collider
-    const collider = new THREE.Box3().setFromObject(decoration);
-    colliders.push(collider);
-  });
   
   // Create player spawn points - Repositioned to north side, near Capitol, facing the Washington Monument (south)
   const spawnCount = 8;
@@ -283,33 +272,33 @@ function createWashingtonMonument() {
     metalness: 0.1
   });
   
-  // Create base - larger for more realism
-  const baseGeometry = new THREE.BoxGeometry(36, 6, 36);
+  // Create base - smaller and flatter
+  const baseGeometry = new THREE.BoxGeometry(20, 2, 20);
   const base = new THREE.Mesh(baseGeometry, material);
-  base.position.y = 3;
+  base.position.y = 1;
   base.castShadow = true;
   base.receiveShadow = true;
   group.add(base);
   
-  // Create obelisk - taller and thicker for more realism
-  const obeliskHeight = 120; // Increased height
-  const segments = 5;
-  const segmentHeight = obeliskHeight / segments;
+  // Create obelisk body - straight sides
+  const bodyWidth = 10;
+  const bodyHeight = 110;
+  const bodyGeometry = new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyWidth);
+  const body = new THREE.Mesh(bodyGeometry, material);
+  body.position.y = bodyHeight/2 + 2; // Position above base
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
   
-  for (let i = 0; i < segments; i++) {
-    const topRadius = Math.max(0.6, 5 * (1 - (i + 1) / segments)); // Thicker
-    const bottomRadius = 5 * (1 - i / segments); // Thicker
-    
-    const segmentGeometry = new THREE.CylinderGeometry(
-      topRadius, bottomRadius, segmentHeight, 4
-    );
-    
-    const segment = new THREE.Mesh(segmentGeometry, material);
-    segment.position.y = 6 + segmentHeight/2 + i * segmentHeight;
-    segment.castShadow = true;
-    segment.receiveShadow = true;
-    group.add(segment);
-  }
+  // Create pyramidal top
+  const pyramidHeight = 15;
+  const pyramidGeometry = new THREE.ConeGeometry(bodyWidth/2 * 1.414, pyramidHeight, 4); // Square base cone
+  const pyramid = new THREE.Mesh(pyramidGeometry, material);
+  pyramid.position.y = bodyHeight + 2 + pyramidHeight/2; // Position above body
+  pyramid.rotation.y = Math.PI/4; // Rotate 45 degrees to align with body
+  pyramid.castShadow = true;
+  pyramid.receiveShadow = true;
+  group.add(pyramid);
   
   return group;
 }
@@ -597,94 +586,4 @@ function updateTextTexture(ctx, text, width, height) {
   
   // Draw text
   ctx.fillText(text, width / 2, height / 2);
-}
-
-/**
- * Creates trees and decorative elements for the National Mall
- * @param {number} width Map width
- * @param {number} length Map length
- * @returns {Array<THREE.Object3D>} Array of decoration objects
- */
-function createTreesAndDecorations(width, length) {
-  const decorations = [];
-  
-  // Create trees along the edges of the pathways
-  // Number of trees to place - increased for larger map
-  const treeCount = 80;
-  
-  // Create tree positions along the main pathways
-  const treePositions = [];
-  
-  // Trees along central path
-  for (let i = 0; i < 20; i++) { // More trees
-    const zOffset = -length * 0.4 + (i * length * 0.8 / 19);
-    treePositions.push({ x: -50, z: zOffset }); // Wider spacing
-    treePositions.push({ x: 50, z: zOffset }); // Wider spacing
-  }
-  
-  // Trees in the quadrants - adjusted for larger map
-  for (let x = -width/3; x <= width/3; x += width/3) {
-    for (let z = -length/3; z <= length/3; z += length/3) {
-      if (x !== 0 || z !== 0) { // Updated condition to place trees in center too
-        treePositions.push({ x, z });
-        
-        // Add more trees in each quadrant
-        treePositions.push({ x: x * 0.7, z: z * 0.7 });
-        treePositions.push({ x: x * 1.2, z: z * 0.7 });
-        treePositions.push({ x: x * 0.7, z: z * 1.2 });
-      }
-    }
-  }
-  
-  // Create trees at random positions from the list
-  for (let i = 0; i < Math.min(treeCount, treePositions.length); i++) {
-    const index = Math.floor(Math.random() * treePositions.length);
-    const pos = treePositions.splice(index, 1)[0]; // Remove the position from the list
-    
-    if (pos) {
-      const tree = createTree();
-      tree.position.set(
-        pos.x + (Math.random() * 10 - 5), // Add some randomness
-        0,
-        pos.z + (Math.random() * 10 - 5)
-      );
-      decorations.push(tree);
-    }
-  }
-  
-  return decorations;
-}
-
-/**
- * Creates a tree
- * @returns {THREE.Group} Tree model
- */
-function createTree() {
-  const tree = new THREE.Group();
-  
-  // Tree trunk
-  const trunkGeometry = new THREE.CylinderGeometry(0.6, 1, 4, 8);
-  const trunkMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x8B4513,
-    roughness: 0.9,
-    metalness: 0.0
-  });
-  const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-  trunk.position.y = 2;
-  trunk.castShadow = true;
-  tree.add(trunk);
-  
-  // Tree foliage (low poly)
-  const foliageGeometry = new THREE.OctahedronGeometry(3, 0); // Simple octahedron shape
-  const foliageMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x447755,
-    roughness: 0.8,
-    metalness: 0.0
-  });
-  const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-  foliage.position.y = 5;
-  foliage.castShadow = true;
-  tree.add(foliage);
-  
-  return tree;
 } 
