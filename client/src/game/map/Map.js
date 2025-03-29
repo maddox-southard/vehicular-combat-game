@@ -22,7 +22,7 @@ export function createMap(scene) {
   scene.add(ground);
   objects.push(ground);
   
-  // Create boundary walls with rotating text displays
+  // Create boundary walls with image displays
   const walls = createBoundaryWallsWithText(mapWidth, mapLength, scene);
   walls.forEach(wall => {
     scene.add(wall);
@@ -405,185 +405,99 @@ function createCapitolBuilding(mapWidth) {
 }
 
 /**
- * Creates boundary walls with rotating text displays
+ * Creates boundary walls with image displays
  * @param {number} width Width of the map
  * @param {number} length Length of the map
  * @param {THREE.Scene} scene The scene to add animations to
- * @returns {Array<THREE.Group>} Array of wall groups with text displays
+ * @returns {Array<THREE.Mesh>} Array of wall meshes
  */
 function createBoundaryWallsWithText(width, length, scene) {
   const walls = [];
   const wallHeight = 20;
   const wallThickness = 4;
   
-  // Create material for walls - changed to white
+  // Create materials
   const wallMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0xffffff, // Pure white
+    color: 0xffffff, // White
     roughness: 0.6,
     metalness: 0.2
   });
   
-  // Create text to display - array of strings that will rotate
-  const textStrings = [
-    "NSMBL.IO",
-    "www.maddoxsouthard.com",
-    "drive865.com"
-  ];
+  // Load texture for the sign - using local asset instead of external URL
+  const textTexture = new THREE.TextureLoader().load('/src/assets/www.maddoxsouthard.com.png');
   
-  // North wall with text
-  const northWallGroup = new THREE.Group();
+  // Create material with texture
+  const textMaterial = new THREE.MeshBasicMaterial({
+    map: textTexture,
+    side: THREE.DoubleSide,
+    transparent: true // Enable transparency for PNG
+  });
   
-  const northWallGeometry = new THREE.BoxGeometry(width, wallHeight, wallThickness);
-  const northWall = new THREE.Mesh(northWallGeometry, wallMaterial);
+  // North wall
+  const northWall = new THREE.Mesh(
+    new THREE.BoxGeometry(width, wallHeight, wallThickness),
+    wallMaterial
+  );
   northWall.position.set(0, wallHeight/2, -length/2 - wallThickness/2);
   northWall.castShadow = true;
   northWall.receiveShadow = true;
-  northWallGroup.add(northWall);
+  walls.push(northWall);
   
-  // Add text display to north wall
-  const northTextDisplay = createRotatingTextDisplay(textStrings, width * 0.8, scene);
-  northTextDisplay.position.set(0, wallHeight * 0.6, -length/2 - wallThickness);
-  northTextDisplay.rotation.y = Math.PI;
-  northWallGroup.add(northTextDisplay);
-  
-  walls.push(northWallGroup);
-  
-  // South wall with text
-  const southWallGroup = new THREE.Group();
-  
-  const southWallGeometry = new THREE.BoxGeometry(width, wallHeight, wallThickness);
-  const southWall = new THREE.Mesh(southWallGeometry, wallMaterial);
+  // South wall
+  const southWall = new THREE.Mesh(
+    new THREE.BoxGeometry(width, wallHeight, wallThickness),
+    wallMaterial
+  );
   southWall.position.set(0, wallHeight/2, length/2 + wallThickness/2);
   southWall.castShadow = true;
   southWall.receiveShadow = true;
-  southWallGroup.add(southWall);
+  walls.push(southWall);
   
-  // Add text display to south wall
-  const southTextDisplay = createRotatingTextDisplay(textStrings, width * 0.8, scene);
-  southTextDisplay.position.set(0, wallHeight * 0.6, length/2 + wallThickness);
-  southWallGroup.add(southTextDisplay);
-  
-  walls.push(southWallGroup);
-  
-  // East wall with text
-  const eastWallGroup = new THREE.Group();
-  
-  const eastWallGeometry = new THREE.BoxGeometry(wallThickness, wallHeight, length);
-  const eastWall = new THREE.Mesh(eastWallGeometry, wallMaterial);
+  // East wall
+  const eastWall = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, length),
+    wallMaterial
+  );
   eastWall.position.set(width/2 + wallThickness/2, wallHeight/2, 0);
   eastWall.castShadow = true;
   eastWall.receiveShadow = true;
-  eastWallGroup.add(eastWall);
+  walls.push(eastWall);
   
-  // Add text display to east wall
-  const eastTextDisplay = createRotatingTextDisplay(textStrings, length * 0.8, scene);
-  eastTextDisplay.position.set(width/2 + wallThickness, wallHeight * 0.6, 0);
-  eastTextDisplay.rotation.y = -Math.PI / 2;
-  eastWallGroup.add(eastTextDisplay);
+  // East wall sign - positioned above the wall
+  const eastSign = new THREE.Mesh(
+    new THREE.PlaneGeometry(length * 0.8, length * 0.8 * 0.2),
+    textMaterial
+  );
+  eastSign.position.set(width/2 + wallThickness/2, wallHeight + 5, 0);
+  eastSign.rotation.y = -Math.PI / 2;
+  // Add light to make the sign more visible
+  const eastLight = new THREE.PointLight(0xffffff, 1, 50);
+  eastLight.position.set(width/2 + wallThickness/2, wallHeight + 8, 0);
+  scene.add(eastLight);
+  scene.add(eastSign);
   
-  walls.push(eastWallGroup);
-  
-  // West wall with text
-  const westWallGroup = new THREE.Group();
-  
-  const westWallGeometry = new THREE.BoxGeometry(wallThickness, wallHeight, length);
-  const westWall = new THREE.Mesh(westWallGeometry, wallMaterial);
+  // West wall
+  const westWall = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, length),
+    wallMaterial
+  );
   westWall.position.set(-width/2 - wallThickness/2, wallHeight/2, 0);
   westWall.castShadow = true;
   westWall.receiveShadow = true;
-  westWallGroup.add(westWall);
+  walls.push(westWall);
   
-  // Add text display to west wall
-  const westTextDisplay = createRotatingTextDisplay(textStrings, length * 0.8, scene);
-  westTextDisplay.position.set(-width/2 - wallThickness, wallHeight * 0.6, 0);
-  westTextDisplay.rotation.y = Math.PI / 2;
-  westWallGroup.add(westTextDisplay);
-  
-  walls.push(westWallGroup);
-  
-  return walls;
-}
-
-/**
- * Creates a rotating text display for the wall
- * @param {Array<string>} textStrings Array of strings to display in rotation
- * @param {number} width Width of the text display
- * @param {THREE.Scene} scene Scene to add animation to
- * @returns {THREE.Group} Group containing the text display
- */
-function createRotatingTextDisplay(textStrings, width, scene) {
-  const textGroup = new THREE.Group();
-  
-  // Create a canvas to generate texture for text
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = 1024;
-  canvas.height = 128;
-  
-  // Create display panel
-  const panelGeometry = new THREE.PlaneGeometry(width, width * 0.1);
-  const panelMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0x000000,
-    opacity: 0.7,
-    transparent: true
-  });
-  const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-  textGroup.add(panel);
-  
-  // Create text mesh with initial text
-  const textTexture = new THREE.CanvasTexture(canvas);
-  const textMaterial = new THREE.MeshBasicMaterial({
-    map: textTexture,
-    transparent: true
-  });
-  
-  const textMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, width * 0.08),
+  // West wall sign - positioned above the wall
+  const westSign = new THREE.Mesh(
+    new THREE.PlaneGeometry(length * 0.8, length * 0.8 * 0.2),
     textMaterial
   );
-  textMesh.position.z = 0.1; // Slightly in front of the panel
-  textGroup.add(textMesh);
+  westSign.position.set(-width/2 - wallThickness/2, wallHeight + 5, 0);
+  westSign.rotation.y = Math.PI / 2;
+  // Add light to make the sign more visible
+  const westLight = new THREE.PointLight(0xffffff, 1, 50);
+  westLight.position.set(-width/2 - wallThickness/2, wallHeight + 8, 0);
+  scene.add(westLight);
+  scene.add(westSign);
   
-  // Draw initial text
-  updateTextTexture(ctx, textStrings[0], canvas.width, canvas.height);
-  textTexture.needsUpdate = true;
-  
-  // Set up text rotation
-  let currentTextIndex = 0;
-  const textRotationInterval = 5000; // 5 seconds per text string
-  
-  function rotateText() {
-    currentTextIndex = (currentTextIndex + 1) % textStrings.length;
-    updateTextTexture(ctx, textStrings[currentTextIndex], canvas.width, canvas.height);
-    textTexture.needsUpdate = true;
-  }
-  
-  // Set up interval for rotating text
-  const intervalId = setInterval(rotateText, textRotationInterval);
-  
-  // Store interval ID on the mesh to clean up later if needed
-  textMesh.userData.intervalId = intervalId;
-  
-  return textGroup;
-}
-
-/**
- * Updates the text texture with new text
- * @param {CanvasRenderingContext2D} ctx Canvas context
- * @param {string} text Text to draw
- * @param {number} width Canvas width
- * @param {number} height Canvas height
- */
-function updateTextTexture(ctx, text, width, height) {
-  // Clear canvas
-  ctx.clearRect(0, 0, width, height);
-  
-  // Set text properties
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 72px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  // Draw text
-  ctx.fillText(text, width / 2, height / 2);
+  return walls;
 } 
