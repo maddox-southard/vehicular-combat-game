@@ -31,7 +31,7 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
     auger: 'Rock Driller',
     axel: 'Wheel Man',
     clubKid: 'Party Van',
-    firestarter: 'Flame Truck',
+    firestarter: 'Hot Rod',
     flowerPower: 'Hippie Van',
     hammerhead: 'Monster Truck',
     mrGrimm: 'Death Cycle',
@@ -39,7 +39,8 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
     roadkill: 'Apocalypse Coupe',
     spectre: 'Ghost Racer',
     thumper: 'Bass Bomber',
-    warthog: 'War Tank'
+    warthog: 'War Tank',
+    sweetTooth: 'Ice-Cream Truck'
   };
   
   // Create navigation buttons
@@ -147,15 +148,24 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
   displayVehicle(currentIndex);
 }
 
+// Store a single shared renderer for all vehicle previews
+let sharedRenderer = null;
+let currentAnimationFrame = null;
+
 /**
  * Create a 3D preview of the vehicle
  * @param {string} vehicleId The vehicle ID to preview
  * @param {HTMLElement} container The container to add the preview to
  */
 export function createVehiclePreview(vehicleId, container) {
-  // Clear any existing preview
+  // Clear any existing preview and cancel any ongoing animation
   while (container.firstChild) {
     container.removeChild(container.firstChild);
+  }
+  
+  if (currentAnimationFrame) {
+    cancelAnimationFrame(currentAnimationFrame);
+    currentAnimationFrame = null;
   }
 
   // Set up a new THREE.js scene for this preview
@@ -200,26 +210,48 @@ export function createVehiclePreview(vehicleId, container) {
   );
   camera.lookAt(center);
   
-  // Create renderer
-  const renderer = new THREE.WebGLRenderer({ 
-    antialias: true,
-    alpha: true 
-  });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setClearColor(0x000000, 0);
+  // Create or reuse renderer
+  if (!sharedRenderer) {
+    sharedRenderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      alpha: true 
+    });
+    sharedRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  }
+  
+  // Adjust renderer size to match container
+  sharedRenderer.setSize(container.clientWidth, container.clientHeight);
+  sharedRenderer.setClearColor(0x000000, 0);
   
   // Append canvas to container
-  container.appendChild(renderer.domElement);
+  container.appendChild(sharedRenderer.domElement);
   
   // Auto-rotate animation
   const rotateVehicle = () => {
-    if (!renderer.domElement.isConnected) return; // Stop if removed from DOM
+    if (!sharedRenderer.domElement.isConnected) {
+      // Clean up if canvas is removed from DOM
+      scene.dispose();
+      return;
+    }
     
     vehicleMesh.rotation.y += 0.01;
-    renderer.render(scene, camera);
-    requestAnimationFrame(rotateVehicle);
+    sharedRenderer.render(scene, camera);
+    currentAnimationFrame = requestAnimationFrame(rotateVehicle);
   };
   
   // Start rotation animation
   rotateVehicle();
+}
+
+// Cleanup function to dispose of WebGL resources when leaving selection screen
+export function cleanupVehicleSelection() {
+  if (currentAnimationFrame) {
+    cancelAnimationFrame(currentAnimationFrame);
+    currentAnimationFrame = null;
+  }
+  
+  if (sharedRenderer) {
+    sharedRenderer.dispose();
+    sharedRenderer = null;
+  }
 } 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { io } from 'socket.io-client';
-import { setupVehicleSelection } from './components/VehicleSelection';
+import { setupVehicleSelection, cleanupVehicleSelection } from './components/VehicleSelection';
 import { createRenderer, createScene, createCamera, updateCamera } from './game/core/Renderer';
 import { initializeGameState } from './game/core/GameState';
 import { setupPortals } from './game/map/Portal';
@@ -67,6 +67,9 @@ function init() {
 function selectVehicleAndJoinGame(vehicleType, playerName) {
   // Hide vehicle selection UI
   document.getElementById('vehicle-selection').style.display = 'none';
+  
+  // Clean up WebGL resources from vehicle selection
+  cleanupVehicleSelection();
   
   // Set game to running
   gameState.running = true;

@@ -122,6 +122,16 @@ export const VEHICLES = {
     description: 'A military tank with heavy armor.',
     specialWeapon: 'Patriot Missiles',
     modelScale: 1.3
+  },
+  sweetTooth: {
+    name: 'Ice-Cream Truck',
+    speed: 3,
+    armor: 5,
+    damage: 4,
+    handling: 2,
+    description: 'A menacing ice cream truck with a flaming clown head mounted on top. Fast, heavily armored, and deadly.',
+    specialWeapon: 'Fire Missile',
+    modelScale: 1.5
   }
 };
 
