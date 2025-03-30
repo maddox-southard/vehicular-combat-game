@@ -404,6 +404,50 @@ function createCapitolBuilding(mapWidth) {
   return group;
 }
 
+// Billboard class for displaying signs above walls
+class Billboard {
+  constructor(scene, textureURL, width, height, position, rotation) {
+    this.scene = scene;
+    this.mesh = null;
+    this.light = null;
+    this.createBillboard(textureURL, width, height, position, rotation);
+  }
+
+  createBillboard(textureURL, width, height, position, rotation) {
+    // Load texture for the billboard
+    const texture = new THREE.TextureLoader().load(textureURL);
+    
+    // Create material with texture
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+      transparent: true
+    });
+    
+    // Create billboard mesh
+    this.mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, height),
+      material
+    );
+    
+    // Set position and rotation
+    this.mesh.position.copy(position);
+    this.mesh.rotation.copy(rotation);
+    
+    // Add light to make the billboard more visible
+    this.light = new THREE.PointLight(0xffffff, 1, 50);
+    this.light.position.set(
+      position.x,
+      position.y + 3, // Light positioned above the billboard
+      position.z
+    );
+    
+    // Add to scene
+    this.scene.add(this.mesh);
+    this.scene.add(this.light);
+  }
+}
+
 /**
  * Creates boundary walls with image displays
  * @param {number} width Width of the map
@@ -421,16 +465,6 @@ function createBoundaryWallsWithText(width, length, scene) {
     color: 0xffffff, // White
     roughness: 0.6,
     metalness: 0.2
-  });
-  
-  // Load texture for the sign - using local asset instead of external URL
-  const textTexture = new THREE.TextureLoader().load('/src/assets/www.maddoxsouthard.com.png');
-  
-  // Create material with texture
-  const textMaterial = new THREE.MeshBasicMaterial({
-    map: textTexture,
-    side: THREE.DoubleSide,
-    transparent: true // Enable transparency for PNG
   });
   
   // North wall
@@ -463,18 +497,21 @@ function createBoundaryWallsWithText(width, length, scene) {
   eastWall.receiveShadow = true;
   walls.push(eastWall);
   
-  // East wall sign - positioned above the wall
-  const eastSign = new THREE.Mesh(
-    new THREE.PlaneGeometry(length * 0.8, length * 0.8 * 0.2),
-    textMaterial
+  // East wall billboard - positioned on top of the wall
+  const eastBillboardPosition = new THREE.Vector3(
+    width/2 + wallThickness/2,           // Same x as wall
+    wallHeight + (length * 0.25 * 0.2)/2, // Top of wall + half billboard height
+    0                                    // Same z as wall
   );
-  eastSign.position.set(width/2 + wallThickness/2, wallHeight + 5, 0);
-  eastSign.rotation.y = -Math.PI / 2;
-  // Add light to make the sign more visible
-  const eastLight = new THREE.PointLight(0xffffff, 1, 50);
-  eastLight.position.set(width/2 + wallThickness/2, wallHeight + 8, 0);
-  scene.add(eastLight);
-  scene.add(eastSign);
+  const eastBillboardRotation = new THREE.Euler(0, -Math.PI / 2, 0);
+  const eastBillboard = new Billboard(
+    scene,
+    '/src/assets/www.maddoxsouthard.com.svg',
+    length * 0.25,                 // Width
+    length * 0.25 * 0.2,           // Height
+    eastBillboardPosition,
+    eastBillboardRotation
+  );
   
   // West wall
   const westWall = new THREE.Mesh(
@@ -486,18 +523,21 @@ function createBoundaryWallsWithText(width, length, scene) {
   westWall.receiveShadow = true;
   walls.push(westWall);
   
-  // West wall sign - positioned above the wall
-  const westSign = new THREE.Mesh(
-    new THREE.PlaneGeometry(length * 0.8, length * 0.8 * 0.2),
-    textMaterial
+  // West wall billboard - positioned on top of the wall
+  const westBillboardPosition = new THREE.Vector3(
+    -width/2 - wallThickness/2,           // Same x as wall
+    wallHeight + (length * 0.25 * 0.2)/2,  // Top of wall + half billboard height
+    0                                     // Same z as wall
   );
-  westSign.position.set(-width/2 - wallThickness/2, wallHeight + 5, 0);
-  westSign.rotation.y = Math.PI / 2;
-  // Add light to make the sign more visible
-  const westLight = new THREE.PointLight(0xffffff, 1, 50);
-  westLight.position.set(-width/2 - wallThickness/2, wallHeight + 8, 0);
-  scene.add(westLight);
-  scene.add(westSign);
+  const westBillboardRotation = new THREE.Euler(0, Math.PI / 2, 0);
+  const westBillboard = new Billboard(
+    scene,
+    '/src/assets/www.maddoxsouthard.com.svg',
+    length * 0.25,                 // Width
+    length * 0.25 * 0.2,           // Height
+    westBillboardPosition,
+    westBillboardRotation
+  );
   
   return walls;
 } 

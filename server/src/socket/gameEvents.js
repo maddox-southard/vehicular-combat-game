@@ -196,7 +196,7 @@ function setupGameEvents(io, gameState) {
 
       if (!hasPickup) {
         // Available pickup types
-        const types = ['homingMissile', 'freezeMissile', 'fullHealth', 'rapidFire'];
+        const types = ['specialAttack', 'fullHealth'];
 
         // Use time-based index for deterministic but changing types
         const timeIndex = Math.floor(Date.now() / 30000) % types.length;

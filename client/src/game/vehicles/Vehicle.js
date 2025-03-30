@@ -4,12 +4,10 @@ import { createVehicleMesh } from './VehicleMeshFactory';
 import { checkWallCollision, resolveWallCollision, checkObjectCollision } from '../physics/CollisionDetection';
 import { Projectile } from '../weapons/Projectile';
 
-// Update the WEAPON_TYPES constant to match exactly with the UI
-const WEAPON_TYPES = {
+// Define weapon types as constants
+export const WEAPON_TYPES = {
   MACHINE_GUN: 'machineGun',
-  HOMING_MISSILE: 'homingMissile',
-  FREEZE_MISSILE: 'freezeMissile',
-  RAPID_FIRE: 'rapidFire'
+  SPECIAL_ATTACK: 'specialAttack'
 };
 
 /**
@@ -60,8 +58,7 @@ export class Vehicle {
     this._currentWeapon = WEAPON_TYPES.MACHINE_GUN;
     this.weaponAmmo = new Map();
     this.weaponAmmo.set(WEAPON_TYPES.MACHINE_GUN, Infinity); // Infinite ammo for machine gun
-    this.rapidFireActive = false;
-    this.rapidFireEndTime = 0;
+    this.projectiles = []; // Initialize projectiles array
 
     // Create mesh
     this.mesh = createVehicleMesh(type);
@@ -194,12 +191,6 @@ export class Vehicle {
       this.damageLevel = 1;
       this.updateDamageVisuals();
     }
-
-    // Check rapid fire status
-    if (this.rapidFireActive && Date.now() > this.rapidFireEndTime) {
-      this.rapidFireActive = false;
-      console.log('Rapid fire deactivated');
-    }
   }
 
   /**
@@ -316,7 +307,7 @@ export class Vehicle {
     switch (this._currentWeapon) {
       case WEAPON_TYPES.MACHINE_GUN:
         const currentTime = Date.now();
-        const fireInterval = this.rapidFireActive ? 100 : 200;
+        const fireInterval = 200;
 
         if (currentTime > (this.lastFireTime || 0) + fireInterval) {
           // Emit fire event to server
@@ -349,53 +340,9 @@ export class Vehicle {
         }
         break;
 
-      case WEAPON_TYPES.HOMING_MISSILE:
-      case WEAPON_TYPES.FREEZE_MISSILE:
-        const ammo = this.weaponAmmo.get(this._currentWeapon);
-        if (ammo && ammo > 0 && Date.now() > (this.lastFireTime || 0) + 1000) {
-          // Emit fire event to server
-          if (window.socket) {
-            const position = this.mesh.position.clone();
-            const direction = new THREE.Vector3(0, 0, -1)
-              .applyQuaternion(this.mesh.quaternion);
-
-            window.socket.emit('fireWeapon', {
-              type: this._currentWeapon,
-              position: {
-                x: position.x,
-                y: position.y,
-                z: position.z
-              },
-              direction: {
-                x: direction.x,
-                y: direction.y,
-                z: direction.z
-              }
-            });
-          }
-
-          // Handle ammo locally
-          const newAmmo = ammo - 1;
-          this.weaponAmmo.set(this._currentWeapon, newAmmo);
-
-          // Remove weapon if no ammo left
-          if (newAmmo <= 0) {
-            const index = this.weapons.indexOf(this._currentWeapon);
-            if (index > -1) {
-              this.weapons.splice(index, 1);
-              this.weaponAmmo.delete(this._currentWeapon);
-              this.currentWeaponIndex = Math.min(this.currentWeaponIndex, this.weapons.length - 1);
-              this._currentWeapon = this.weapons[this.currentWeaponIndex];
-            }
-          }
-
-          // Update UI
-          if (window.gameUI) {
-            window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
-          }
-
-          this.lastFireTime = Date.now();
-        }
+      case WEAPON_TYPES.SPECIAL_ATTACK:
+        // Fire a special missile
+        this.fireSpecialAttack();
         break;
     }
     return null;
@@ -525,38 +472,61 @@ export class Vehicle {
 
     const ammo = this.weaponAmmo.get(currentWeapon);
     if (ammo && ammo > 0) {
-      // Only handle rapid fire here
-      if (currentWeapon === WEAPON_TYPES.RAPID_FIRE) {
-        this.activateRapidFire();
+      // Fire special attack
+      this.fireSpecialAttack();
 
-        // Decrease ammo
-        const newAmmo = ammo - 1;
-        this.weaponAmmo.set(currentWeapon, newAmmo);
+      // Decrease ammo handled in fireSpecialAttack method
 
-        // Remove weapon if no ammo left
-        if (newAmmo <= 0) {
-          const index = this.weapons.indexOf(currentWeapon);
-          if (index > -1) {
-            this.weapons.splice(index, 1);
-            this.weaponAmmo.delete(currentWeapon);
-            this.currentWeaponIndex = Math.min(this.currentWeaponIndex, this.weapons.length - 1);
-            this._currentWeapon = this.weapons[this.currentWeaponIndex];
-          }
-        }
-
-        // Force immediate UI update
-        if (window.gameUI) {
-          window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
-        }
+      // Force immediate UI update
+      if (window.gameUI) {
+        window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
       }
     }
   }
 
   // Special weapon methods
-  activateRapidFire() {
-    this.rapidFireActive = true;
-    this.rapidFireEndTime = Date.now() + 10000; // 10 seconds duration
-    console.log('Activated rapid fire');
+  fireSpecialAttack() {
+    const ammo = this.weaponAmmo.get(this._currentWeapon);
+    if (ammo <= 0) return;
+
+    this.weaponAmmo.set(this._currentWeapon, ammo - 1);
+
+    // Calculate spawn position
+    const forward = this.getForwardVector();
+    const spawnPos = this.mesh.position.clone().add(forward.multiplyScalar(2));
+    spawnPos.y += 1; // Spawn slightly above vehicle
+
+    // Create projectile - ensure forward direction is used
+    const projectile = new Projectile(
+      'specialAttack',
+      spawnPos,
+      forward.clone(), // Negate the direction to reverse it
+      this
+    );
+
+    this.scene.add(projectile.mesh);
+    this.projectiles.push(projectile);
+    
+    // Also add to the gameState.projectiles array for proper tracking
+    if (window.gameState && window.gameState.projectiles) {
+      window.gameState.projectiles.push(projectile);
+    }
+
+    // Play fire sound
+    if (this.soundEnabled) {
+      this.playWeaponSound('specialAttack');
+    }
+    
+    return projectile; // Return the projectile for further processing
+  }
+
+  /**
+   * Get the forward vector of the vehicle
+   * @returns {THREE.Vector3} The forward vector
+   */
+  getForwardVector() {
+    const direction = new THREE.Vector3(0, 0, -1);
+    return direction.applyQuaternion(this.mesh.quaternion).normalize();
   }
 
   // Add method to handle pickup collection
@@ -567,29 +537,12 @@ export class Vehicle {
     });
 
     switch (pickupType) {
-      case 'homingMissile':
-        if (!this.weaponAmmo.has(WEAPON_TYPES.HOMING_MISSILE)) {
-          this.weapons.push(WEAPON_TYPES.HOMING_MISSILE);
-          this.weaponAmmo.set(WEAPON_TYPES.HOMING_MISSILE, 0);
+      case 'specialAttack':
+        if (!this.weaponAmmo.has(WEAPON_TYPES.SPECIAL_ATTACK)) {
+          this.weapons.push(WEAPON_TYPES.SPECIAL_ATTACK);
+          this.weaponAmmo.set(WEAPON_TYPES.SPECIAL_ATTACK, 0);
         }
-        this.weaponAmmo.set(WEAPON_TYPES.HOMING_MISSILE,
-          (this.weaponAmmo.get(WEAPON_TYPES.HOMING_MISSILE) || 0) + 3);
-        break;
-      case 'freezeMissile':
-        if (!this.weaponAmmo.has(WEAPON_TYPES.FREEZE_MISSILE)) {
-          this.weapons.push(WEAPON_TYPES.FREEZE_MISSILE);
-          this.weaponAmmo.set(WEAPON_TYPES.FREEZE_MISSILE, 0);
-        }
-        this.weaponAmmo.set(WEAPON_TYPES.FREEZE_MISSILE,
-          (this.weaponAmmo.get(WEAPON_TYPES.FREEZE_MISSILE) || 0) + 2);
-        break;
-      case 'rapidFire':
-        if (!this.weaponAmmo.has(WEAPON_TYPES.RAPID_FIRE)) {
-          this.weapons.push(WEAPON_TYPES.RAPID_FIRE);
-          this.weaponAmmo.set(WEAPON_TYPES.RAPID_FIRE, 0);
-        }
-        this.weaponAmmo.set(WEAPON_TYPES.RAPID_FIRE,
-          (this.weaponAmmo.get(WEAPON_TYPES.RAPID_FIRE) || 0) + 1);
+        this.weaponAmmo.set(WEAPON_TYPES.SPECIAL_ATTACK, 1);
         break;
       case 'fullHealth':
         this.health = this.maxHealth;

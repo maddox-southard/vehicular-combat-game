@@ -29,6 +29,9 @@ let gameState = {
   projectiles: []
 };
 
+// Make gameState globally available
+window.gameState = gameState;
+
 // Socket configuration
 const socketUrl = import.meta.env.PROD
   ? 'https://your-production-server.com'

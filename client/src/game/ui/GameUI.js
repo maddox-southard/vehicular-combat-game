@@ -276,9 +276,7 @@ export class GameUI {
     formatWeaponName(weapon) {
         switch (weapon) {
             case 'machineGun': return 'Machine Gun';
-            case 'homingMissile': return 'Homing Missile';
-            case 'freezeMissile': return 'Freeze Missile';
-            case 'rapidFire': return 'Rapid Fire';
+            case 'specialAttack': return 'Special Attack';
             default: return weapon;
         }
     }

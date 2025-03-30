@@ -2,10 +2,8 @@ import * as THREE from 'three';
 
 // Define pickup colors
 const PICKUP_COLORS = {
-    homingMissile: 0xffff00,  // Yellow
-    freezeMissile: 0x00ffff,  // Cyan
-    fullHealth: 0xff0000,     // Red
-    rapidFire: 0xffa500       // Orange
+    specialAttack: 0xffff00,  // Yellow
+    fullHealth: 0xff0000      // Red
 };
 
 /**
@@ -15,14 +13,10 @@ const PICKUP_COLORS = {
  */
 export function createPickupMesh(type) {
     switch (type) {
-        case 'homingMissile':
-            return createMissileMesh(PICKUP_COLORS.homingMissile);
-        case 'freezeMissile':
-            return createMissileMesh(PICKUP_COLORS.freezeMissile);
+        case 'specialAttack':
+            return createSpecialAttackMesh();
         case 'fullHealth':
             return createHealthMesh();
-        case 'rapidFire':
-            return createThunderMesh();
         default:
             return createDefaultMesh();
     }
@@ -151,4 +145,79 @@ function createDefaultMesh() {
     mesh.userData.floatOffset = Math.random() * Math.PI * 2;
 
     return mesh;
+}
+
+function createSpecialAttackMesh() {
+    const group = new THREE.Group();
+
+    // Create a geometric 3D "S" shape
+    const frontMaterial = new THREE.MeshPhongMaterial({
+        color: 0x0000cc, // Deep blue
+        emissive: 0x0000aa,
+        emissiveIntensity: 0.2,
+        transparent: true,
+        opacity: 0.9
+    });
+    
+    const sideMaterial = new THREE.MeshPhongMaterial({
+        color: 0x9370db, // Medium purple for sides
+        emissive: 0x9370db,
+        emissiveIntensity: 0.2,
+        transparent: true,
+        opacity: 0.9
+    });
+    
+    // Create materials array for the cubes (front, side, side, side, side, back)
+    const materials = [
+        sideMaterial, sideMaterial,
+        frontMaterial, sideMaterial,
+        sideMaterial, sideMaterial
+    ];
+
+    // Top horizontal section
+    const topBar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.2, 0.3),
+        materials
+    );
+    topBar.position.set(0, 0.9, 0);
+    
+    // Middle horizontal section
+    const middleBar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.2, 0.3),
+        materials
+    );
+    middleBar.position.set(0, 0, 0);
+    
+    // Bottom horizontal section
+    const bottomBar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.2, 0.3),
+        materials
+    );
+    bottomBar.position.set(0, -0.9, 0);
+    
+    // Top vertical section (right side)
+    const topRight = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.7, 0.3),
+        materials
+    );
+    topRight.position.set(0.3, 0.5, 0);
+    
+    // Bottom vertical section (left side)
+    const bottomLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.7, 0.3),
+        materials
+    );
+    bottomLeft.position.set(-0.3, -0.5, 0);
+    
+    // Add all pieces to the group
+    group.add(topBar, middleBar, bottomBar, topRight, bottomLeft);
+    
+    // Slight rotation to make it more visible
+    group.rotation.y = Math.PI / 4;
+    
+    // Scaling and floating behavior
+    group.scale.set(2, 2, 2);
+    group.userData.floatOffset = Math.random() * Math.PI * 2;
+    
+    return group;
 } 
