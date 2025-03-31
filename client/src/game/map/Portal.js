@@ -10,11 +10,13 @@ export class Portal {
    * @param {string} type Portal type ('entry' or 'exit')
    * @param {THREE.Vector3} position Portal position
    * @param {string} targetUrl URL to teleport to (for exit portals)
+   * @param {string} label Optional label text for the portal
    */
-  constructor(type, position, targetUrl = '') {
+  constructor(type, position, targetUrl = '', label = '') {
     this.type = type; // 'entry' or 'exit'
     this.position = position;
     this.targetUrl = targetUrl;
+    this.label = label;
     this.mesh = this.createMesh();
     this.active = true;
     this.hitbox = new THREE.Sphere(this.position, 5); // 5 units radius
@@ -51,6 +53,36 @@ export class Portal {
     portalPlane.rotation.x = Math.PI / 2; // Make it horizontal
     portalPlane.position.y = 0.1; // Slightly above ring
     group.add(portalPlane);
+    
+    // Create label if provided
+    if (this.label) {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = 256;
+      canvas.height = 64;
+      
+      // Draw text on canvas
+      context.fillStyle = '#ffffff';
+      context.font = 'Bold 24px Arial';
+      context.textAlign = 'center';
+      context.fillText(this.label, 128, 40);
+      
+      // Create texture from canvas
+      const texture = new THREE.CanvasTexture(canvas);
+      const labelMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide
+      });
+      
+      // Create label mesh
+      const labelGeometry = new THREE.PlaneGeometry(8, 2);
+      const labelMesh = new THREE.Mesh(labelGeometry, labelMaterial);
+      labelMesh.position.set(0, 5, 0); // Position above portal
+      labelMesh.rotation.x = 0; // Face the player
+      
+      group.add(labelMesh);
+    }
     
     // Position portal
     group.position.copy(this.position);
@@ -108,6 +140,15 @@ export class Portal {
       
       // Set a cooldown to prevent immediate re-entry
       this.activationCooldown = 5; // 5 seconds
+      
+      // If the entry portal has a target URL (ref), send the player back
+      if (this.targetUrl) {
+        // Create a slight delay for better UX
+        setTimeout(() => {
+          const url = constructPortalExitUrl(player, this.targetUrl);
+          window.location.href = url;
+        }, 500);
+      }
     }
   }
 }
@@ -120,11 +161,16 @@ export class Portal {
 export function setupPortals(scene) {
   const portals = [];
   
-  // Create exit portal near Washington Monument
+  // Move exit portal in front of Washington Monument (south side of map)
+  // Get map dimensions
+  const mapDimensions = window.gameState?.map?.getDimensions() || { width: 320, length: 480 };
+  
+  // Create exit portal in front of Washington Monument (south side of map)
   const exitPortal = new Portal(
     'exit',
-    new THREE.Vector3(0, 0, -80), // Near Washington Monument
-    'http://portal.pieter.com'
+    new THREE.Vector3(0, 0, mapDimensions.length/2 - 60), // In front of Washington Monument
+    'http://portal.pieter.com',
+    'Vibeverse Portal' // Add label
   );
   scene.add(exitPortal.mesh);
   portals.push(exitPortal);
@@ -133,21 +179,29 @@ export function setupPortals(scene) {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('portal') === 'true') {
     // Player is coming from a portal
+    const ref = urlParams.get('ref') || '';
+    
+    // Create entry portal - spawn point with return capability
     const entryPortal = new Portal(
       'entry',
-      new THREE.Vector3(0, 0, -60) // Spawn location
+      new THREE.Vector3(0, 0, -mapDimensions.length/3), // North side of map
+      ref, // Set ref as target URL to go back
+      ref ? 'Return Portal' : '' // Add label if we have a return destination
     );
     scene.add(entryPortal.mesh);
     portals.push(entryPortal);
     
-    // Make entry portal disappear after some time
-    setTimeout(() => {
-      scene.remove(entryPortal.mesh);
-      const index = portals.indexOf(entryPortal);
-      if (index !== -1) {
-        portals.splice(index, 1);
-      }
-    }, 10000); // 10 seconds
+    // Entry portal should stay permanently if it has a return destination
+    if (!ref) {
+      // Make entry portal disappear after some time only if it has no return destination
+      setTimeout(() => {
+        scene.remove(entryPortal.mesh);
+        const index = portals.indexOf(entryPortal);
+        if (index !== -1) {
+          portals.splice(index, 1);
+        }
+      }, 30000); // 30 seconds
+    }
   }
   
   return {

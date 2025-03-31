@@ -4,7 +4,7 @@ import { setupVehicleSelection, cleanupVehicleSelection } from './components/Veh
 import { createRenderer, createScene, createCamera, updateCamera } from './game/core/Renderer';
 import { initializeGameState } from './game/core/GameState';
 import { setupPortals } from './game/map/Portal';
-import { checkForPortalParameters } from './utils/UrlUtils';
+import { checkForPortalParameters, shouldAutoStart } from './utils/UrlUtils';
 import { createAerialCamera, updateAerialCamera } from './game/core/AerialCamera';
 import { initializeRespawn, startRespawn, updateRespawn, createRespawnUI } from './game/core/Respawn';
 import { createMap } from './game/map/Map';
@@ -69,14 +69,77 @@ function init() {
   // Check for portal parameters
   const portalParams = checkForPortalParameters();
 
-  // Setup vehicle selection
-  setupVehicleSelection(selectVehicleAndJoinGame, portalParams);
+  // If coming from a portal, skip vehicle selection and start immediately
+  if (portalParams && portalParams.portal) {
+    // Auto-select vehicle and start game
+    const vehicleType = portalParams.vehicle || 'roadkill';
+    const playerName = portalParams.username || 'Portal Player';
+    
+    // Hide vehicle selection UI immediately
+    document.getElementById('vehicle-selection').style.display = 'none';
+    
+    // Start game with portal parameters
+    startGameWithPortalParams(vehicleType, playerName, portalParams);
+  } else {
+    // Show vehicle selection UI
+    setupVehicleSelection(selectVehicleAndJoinGame, portalParams);
+  }
 
   // Handle window resize
   window.addEventListener('resize', onWindowResize);
 
   // Start animation loop immediately for instant loading experience
   animate(0);
+}
+
+// Function to start game directly from portal parameters
+function startGameWithPortalParams(vehicleType, playerName, portalParams) {
+  // Clean up WebGL resources from vehicle selection
+  cleanupVehicleSelection();
+
+  // Set game to running
+  gameState.running = true;
+  gameState.useAerialCamera = false;
+
+  // Initialize game with selected vehicle and portal parameters
+  initializeGameWithPortal(scene, vehicleType, playerName, socket, gameState, portalParams);
+
+  // Initialize weapon UI with initial weapon state
+  if (gameState.localPlayer && gameState.localPlayer.vehicle) {
+    window.gameUI.updateWeaponSystem(
+      gameState.localPlayer.vehicle.weapons,
+      gameState.localPlayer.vehicle.currentWeapon,
+      gameState.localPlayer.vehicle.weaponAmmo
+    );
+  }
+
+  // Extend vehicle handleDeath method to trigger respawn
+  if (gameState.localPlayer && gameState.localPlayer.vehicle) {
+    const originalHandleDeath = gameState.localPlayer.vehicle.handleDeath;
+    gameState.localPlayer.vehicle.handleDeath = function () {
+      originalHandleDeath.call(this);
+
+      // Trigger respawn and switch to aerial view
+      gameState.useAerialCamera = true;
+      startRespawn(gameState);
+    };
+  }
+
+  // Setup portals
+  gameState.portals = setupPortals(scene);
+
+  // Setup socket handlers
+  setupSocketHandlers();
+
+  // Connect socket
+  socket.connect();
+
+  // Join game with selected vehicle
+  socket.emit('join', {
+    username: playerName || 'Player',
+    vehicle: vehicleType,
+    fromPortal: true
+  });
 }
 
 // Vehicle selection callback
@@ -129,6 +192,82 @@ function selectVehicleAndJoinGame(vehicleType, playerName) {
     username: playerName || 'Player',
     vehicle: vehicleType
   });
+}
+
+// Initialize game state with portal parameters
+function initializeGameWithPortal(scene, vehicleType, playerName, socket, gameState, portalParams) {
+  // Create the map if it doesn't exist already
+  if (!gameState.map) {
+    gameState.map = createMap(scene);
+  }
+
+  // Create local player vehicle with scene reference
+  const localPlayer = {
+    id: socket.id || 'local-player',
+    username: playerName || 'Player',
+    vehicle: new Vehicle(vehicleType, { scene: scene }),
+    isLocal: true,
+    color: portalParams.color || 'blue'
+  };
+
+  // Apply portal parameters to vehicle
+  if (portalParams) {
+    // Apply speed if provided
+    if (portalParams.speed) {
+      localPlayer.vehicle.speed = parseFloat(portalParams.speed);
+    }
+    
+    // Apply velocity if provided
+    if (portalParams.speed_x !== undefined || 
+        portalParams.speed_y !== undefined || 
+        portalParams.speed_z !== undefined) {
+      localPlayer.vehicle.velocity = {
+        x: parseFloat(portalParams.speed_x || 0),
+        y: parseFloat(portalParams.speed_y || 0),
+        z: parseFloat(portalParams.speed_z || 0)
+      };
+    }
+    
+    // Apply rotation if provided
+    if (portalParams.rotation_x !== undefined ||
+        portalParams.rotation_y !== undefined ||
+        portalParams.rotation_z !== undefined) {
+      localPlayer.vehicle.mesh.rotation.x = parseFloat(portalParams.rotation_x || 0);
+      localPlayer.vehicle.mesh.rotation.y = parseFloat(portalParams.rotation_y || 0);
+      localPlayer.vehicle.mesh.rotation.z = parseFloat(portalParams.rotation_z || 0);
+    }
+    
+    // Store other portal parameters
+    if (portalParams.avatar_url) {
+      localPlayer.avatar_url = portalParams.avatar_url;
+    }
+    
+    if (portalParams.team) {
+      localPlayer.team = portalParams.team;
+    }
+  }
+
+  // Position at entry portal instead of spawn point
+  const entryPortalPosition = new THREE.Vector3(0, 0, -gameState.map.getDimensions().length/3);
+  localPlayer.vehicle.mesh.position.copy(entryPortalPosition);
+  localPlayer.vehicle.mesh.rotation.y = Math.PI; // Face south
+
+  // Add to scene
+  scene.add(localPlayer.vehicle.mesh);
+
+  // Set in game state
+  gameState.localPlayer = localPlayer;
+
+  // Setup controls
+  setupControls(localPlayer.vehicle);
+
+  // Initialize players map with local player
+  gameState.players.set(localPlayer.id, localPlayer);
+
+  // Create boss
+  createBoss(scene, gameState);
+
+  return gameState;
 }
 
 // Socket event handlers
@@ -371,6 +510,9 @@ function addPlayer(playerData, scene, gameState) {
   // Create new vehicle for player
   const vehicle = new Vehicle(playerData.vehicle);
 
+  // Set player name on the vehicle
+  vehicle.setPlayerName(playerData.username || 'Player');
+
   // Set position if provided
   if (playerData.position) {
     vehicle.mesh.position.set(
@@ -413,26 +555,34 @@ function removePlayer(playerId, scene, gameState) {
 // Animation loop
 function animate(time) {
   requestAnimationFrame(animate);
-
-  const delta = (time - gameState.lastTime) / 1000;
+  
+  const delta = Math.min((time - gameState.lastTime) / 1000, 0.1);
   gameState.lastTime = time;
-
-  // Update game logic if game is running
+  
+  // Update game logic if the game is running
   if (gameState.running) {
     updateGame(delta, time);
+    
+    // Update portals if available
+    if (gameState.portals) {
+      gameState.portals.update(delta, time);
+      
+      // Check for portal collisions
+      checkPortalCollisions();
+    }
+    
+    // Update respawn logic
+    updateRespawn(gameState, delta);
   }
-
-  // Update respawn system
-  updateRespawn(gameState, scene);
-
-  // Update aerial camera
-  updateAerialCamera(aerialCamera, scene, time);
-
-  // Choose which camera to use
-  const activeCamera = gameState.useAerialCamera ? aerialCamera : camera;
-
-  // Render scene
-  renderer.render(scene, activeCamera);
+  
+  // Always update aerial camera when in aerial view mode
+  // This ensures the aerial view is visible in the background during vehicle selection
+  if (gameState.useAerialCamera) {
+    updateAerialCamera(aerialCamera, delta);
+    renderer.render(scene, aerialCamera);
+  } else {
+    renderer.render(scene, camera);
+  }
 }
 
 // Game update logic
@@ -544,7 +694,9 @@ function updateCameraPosition() {
 
 // Check for portal collisions
 function checkPortalCollisions() {
-  // Implement portal collision detection
+  if (gameState.portals && gameState.localPlayer && gameState.localPlayer.vehicle) {
+    gameState.portals.checkCollisions(gameState.localPlayer);
+  }
 }
 
 // Update pickups

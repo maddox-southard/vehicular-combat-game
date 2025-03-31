@@ -25,6 +25,9 @@ export function initializeGameState(scene, vehicleType, playerName, socket, game
     isLocal: true
   };
 
+  // Set player name on the vehicle
+  localPlayer.vehicle.setPlayerName(localPlayer.username);
+
   // Position at spawn point
   const spawnPoint = gameState.map.getPlayerSpawnPoint();
   localPlayer.vehicle.mesh.position.copy(spawnPoint.position);
@@ -84,6 +87,9 @@ export function addPlayer(playerData, scene, gameState) {
 
   // Create new vehicle for player
   const vehicle = new Vehicle(playerData.vehicle);
+
+  // Set player name on the vehicle
+  vehicle.setPlayerName(playerData.username || 'Player');
 
   // Position at provided coordinates or spawn point
   if (playerData.position) {

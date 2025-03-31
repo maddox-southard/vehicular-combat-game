@@ -10,12 +10,12 @@ import { createVehicleMesh } from '../game/vehicles/VehicleMeshFactory';
 export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
   const vehiclesContainer = document.getElementById('vehicles-container');
   
-  // If coming from a portal with vehicle params, skip selection
-  if (portalParams && portalParams.vehicle) {
+  // If coming from a portal with params, skip selection
+  if (portalParams && portalParams.portal) {
     // Auto-select vehicle from portal params
     setTimeout(() => {
-      onVehicleSelect(portalParams.vehicle, portalParams.username || 'Portal Player');
-    }, 500);
+      onVehicleSelect(portalParams.vehicle || 'roadkill', portalParams.username || 'Portal Player');
+    }, 100); // Reduced delay for faster loading
     return;
   }
   
@@ -43,7 +43,12 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
     sweetTooth: 'Ice-Cream Truck'
   };
   
-  // Create navigation buttons
+  // Create vehicle display container first
+  const vehicleDisplay = document.createElement('div');
+  vehicleDisplay.id = 'vehicle-display';
+  vehiclesContainer.appendChild(vehicleDisplay);
+  
+  // Create navigation buttons after vehicle display
   const navigationContainer = document.createElement('div');
   navigationContainer.className = 'vehicle-navigation';
   navigationContainer.innerHTML = `
@@ -53,11 +58,6 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
   `;
   vehiclesContainer.appendChild(navigationContainer);
   
-  // Create vehicle display container
-  const vehicleDisplay = document.createElement('div');
-  vehicleDisplay.id = 'vehicle-display';
-  vehiclesContainer.appendChild(vehicleDisplay);
-  
   // Function to display current vehicle
   function displayVehicle(index) {
     const [vehicleId, vehicle] = vehicleEntries[index];
@@ -66,6 +66,9 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
     vehicleDisplay.innerHTML = `
       <h3 class="vehicle-name">${vehicleDescription}</h3>
       <div class="vehicle-image"></div>
+      <div class="player-name-container">
+        <input type="text" class="player-name-input" placeholder="Enter your name" maxlength="15" value="${localStorage.getItem('playerName') || ''}">
+      </div>
       <div class="vehicle-stats">
         <div class="stat">
           <div>Speed</div>
@@ -116,10 +119,13 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
   // Select current vehicle
   function selectVehicle() {
     const vehicleId = vehicleDisplay.dataset.vehicleId;
-    // Use a default player name instead of prompting
-    const playerName = 'Player';
+    const playerNameInput = document.querySelector('.player-name-input');
+    const playerName = playerNameInput?.value.trim() || 'Player';
     
-    // Call the selection callback directly
+    // Save player name to localStorage
+    localStorage.setItem('playerName', playerName);
+    
+    // Call the selection callback
     onVehicleSelect(vehicleId, playerName);
   }
   
@@ -179,7 +185,7 @@ export function createVehiclePreview(vehicleId, container) {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
   directionalLight.position.set(5, 5, 5);
   scene.add(directionalLight);
-
+  
   // Add another directional light from different angle for better visibility
   const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
   backLight.position.set(-5, 3, -5);

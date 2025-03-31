@@ -48,6 +48,10 @@ export class Vehicle {
     this.turnRate = 0.03 + (this.handling * 0.01);
     this.maxSpeed = 1 + (this.speed * 0.2);
 
+    // Player name for display
+    this.playerName = null;
+    this.nameLabel = null;
+
     // Movement state
     this.velocity = new THREE.Vector3(0, 0, 0);
     this.rotationVelocity = 0;
@@ -182,6 +186,11 @@ export class Vehicle {
 
     // Update collision box
     this.updateCollisionBox();
+
+    // Update the player name label position if it exists
+    if (this.nameLabel) {
+      this.updateNameLabelPosition();
+    }
 
     // Update damage visuals if needed
     if (this.health <= this.maxHealth * 0.3 && this.damageLevel < 2) {
@@ -559,5 +568,72 @@ export class Vehicle {
     if (window.gameUI) {
       window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
     }
+  }
+
+  /**
+   * Set the player name for this vehicle and create a label to display it
+   * @param {string} name The player name to display
+   */
+  setPlayerName(name) {
+    if (!name) return;
+    
+    this.playerName = name;
+    
+    // Remove any existing label
+    if (this.nameLabel && this.mesh.parent) {
+      this.mesh.remove(this.nameLabel);
+    }
+    
+    // Create a canvas for the text
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+    
+    // Draw text on canvas
+    context.fillStyle = '#ffffff';
+    context.font = 'Bold 24px Arial';
+    context.textAlign = 'center';
+    context.fillText(name, 128, 40);
+    
+    // Add a drop shadow for better visibility
+    context.shadowColor = '#000000';
+    context.shadowBlur = 5;
+    context.fillText(name, 128, 40);
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    const labelMaterial = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true
+    });
+    
+    // Create sprite
+    this.nameLabel = new THREE.Sprite(labelMaterial);
+    this.nameLabel.scale.set(4, 1, 1);
+    
+    // Position the label above the vehicle
+    this.updateNameLabelPosition();
+    
+    // Add label to the vehicle mesh
+    this.mesh.add(this.nameLabel);
+  }
+  
+  /**
+   * Update the position of the name label to stay above the vehicle
+   */
+  updateNameLabelPosition() {
+    if (!this.nameLabel) return;
+    
+    // Position label above the vehicle
+    const vehicleSize = new THREE.Vector3();
+    this.collisionBox.getSize(vehicleSize);
+    
+    // Position higher above large vehicles
+    const height = vehicleSize.y + 1.5;
+    this.nameLabel.position.set(0, height, 0);
+    
+    // Make label always face the camera
+    this.nameLabel.matrixAutoUpdate = true;
   }
 } 

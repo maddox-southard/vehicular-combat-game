@@ -21,10 +21,12 @@ export function createAerialCamera() {
 /**
  * Updates the aerial camera position
  * @param {THREE.Camera} aerialCamera The aerial camera to update
- * @param {THREE.Scene} scene The scene
- * @param {number} time Current time for animation
+ * @param {number} delta Time delta since last update
  */
-export function updateAerialCamera(aerialCamera, scene, time) {
+export function updateAerialCamera(aerialCamera, delta) {
+  // Get current time for animation
+  const time = performance.now();
+  
   // Slowly rotate camera around the map
   const rotationSpeed = 0.05;
   const angle = (time / 10000) * rotationSpeed;
