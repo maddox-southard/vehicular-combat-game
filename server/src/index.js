@@ -12,7 +12,7 @@ const server = http.createServer(app);
 // Set up CORS for API routes
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://your-game-domain.com', 'https://alternate-domain.com']
+    ? ['https://vcg.nsmbl.io']
     : ['http://localhost:5173', 'http://127.0.0.1:5173']
 }));
 
@@ -20,7 +20,7 @@ app.use(cors({
 const io = socketIO(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production'
-      ? ['https://your-game-domain.com', 'https://alternate-domain.com']
+      ? ['https://vcg.nsmbl.io']
       : ['http://localhost:5173', 'http://127.0.0.1:5173'],
     methods: ['GET', 'POST'],
     credentials: true

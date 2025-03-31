@@ -33,9 +33,7 @@ let gameState = {
 window.gameState = gameState;
 
 // Socket configuration
-const socketUrl = import.meta.env.PROD
-  ? 'https://your-production-server.com'
-  : 'http://localhost:3000';
+const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 const socket = io(socketUrl, {
   autoConnect: false,
   reconnection: true,
