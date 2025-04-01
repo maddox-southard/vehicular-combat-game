@@ -2006,9 +2006,10 @@ export class SemiTrump {
    * Make the boss take damage
    * @param {number} amount Amount of damage to take
    * @param {Object} attacker The player who caused the damage
+   * @param {boolean} [preventDeath=false] If true, don't report destruction even if health reaches 0
    * @returns {boolean} True if the boss was destroyed
    */
-  takeDamage(amount, attacker) {
+  takeDamage(amount, attacker, preventDeath = false) {
     console.log(`SemiTrump takeDamage called with damage: ${amount}, current health: ${this.health}`);
     
     // Apply damage
@@ -2032,8 +2033,9 @@ export class SemiTrump {
       this.target = attacker;
     }
 
-    // Check if destroyed
-    return this.health <= 0;
+    // Check if destroyed, but only report it if preventDeath is false
+    // This lets the server control when the boss is actually destroyed
+    return this.health <= 0 && !preventDeath;
   }
 
   /**

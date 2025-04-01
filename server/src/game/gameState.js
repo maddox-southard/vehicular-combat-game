@@ -59,8 +59,8 @@ function createGameState() {
      * @param {SocketIO.Server} io Socket.IO server instance
      */
     update(delta, time, io) {
-      // Check for boss respawn
-      this.checkBossRespawn(time, io);
+      // REMOVED: Check for boss respawn (now handled in gameEvents.js)
+      // this.checkBossRespawn(time, io);
 
       // Update pickups
       this.updatePickups(delta, time, io);
@@ -393,11 +393,6 @@ function createGameState() {
 
       // Add to players map
       this.players.set(id, player);
-
-      // Spawn boss if needed
-      if (this.players.size === 1 && !this.boss && this.lastBossDefeatTime === 0) {
-        this.lastBossDefeatTime = Date.now() - this.bossRespawnDelay + 2000; // Spawn after 2 seconds
-      }
 
       return player;
     },

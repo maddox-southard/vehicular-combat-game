@@ -528,15 +528,11 @@ function setupSocketHandlers() {
   });
 
   socket.on('bossHit', (data) => {
-    console.log('Boss hit:', data);
+    console.log('Server reported boss hit:', data);
     if (gameState.boss) {
-      // Update boss health from server for sync purposes
-      // but avoid calling takeDamage again to prevent duplicate damage
-      if (socket.id !== data.attackerId) {
-        // Only directly set health values if this client didn't cause the damage
-        gameState.boss.health = data.health;
-        gameState.boss.maxHealth = data.maxHealth;
-      }
+      // Always update with server's health values for consistency
+      gameState.boss.health = data.health;
+      gameState.boss.maxHealth = data.maxHealth;
       
       // Always update UI with server values for consistency
       window.gameUI.updateBossHealth(data.health, data.maxHealth);
@@ -563,20 +559,29 @@ function setupSocketHandlers() {
     }
   });
 
-  socket.on('bossDefeated', () => {
-    console.log('Boss defeated');
+  socket.on('bossDefeated', (data) => {
+    console.log('Server reported boss defeated by player:', data?.killerId);
+    
+    // Only play the death animation if we still have a boss reference
     if (gameState.boss && gameState.boss.mesh) {
-      // Play death animation instead of removing immediately
+      console.log('Playing boss death animation');
+      // Play death animation
       createBossDeathAnimation(gameState.boss.mesh, scene);
     }
+    
+    // Clear boss references
     gameState.boss = null;
     gameState.bossMesh = null;
+    
+    // Update UI
     window.gameUI.updateBossHealth(0, 100);
     
-    // Start respawn timer if not already running
-    if (!gameState.bossRespawning) {
-      startBossRespawnTimer();
-    }
+    // Start the client-side respawn notification timer sequence
+    startBossRespawnTimer(); 
+    
+    // Local clients don't need to start respawn timer - the server will handle this
+    // and send a bossRespawned event when ready
+    console.log('Waiting for server to respawn boss...');
   });
 
   socket.on('projectileFired', (data) => {
@@ -1010,39 +1015,20 @@ function updateGame(delta, time) {
         if (projectile.isFreezeMissile) {
           socket.emit('bossFreeze');
         } else {
-          // Apply damage directly to the boss instance
+          // Apply damage locally for immediate feedback
           if (gameState.boss.takeDamage) {
             console.log('Before damage - Boss health:', gameState.boss.health);
-            const wasDestroyed = gameState.boss.takeDamage(projectile.damage, projectile.owner);
-            console.log('After damage - Boss health:', gameState.boss.health, 'Destroyed:', wasDestroyed);
+            // Apply local damage for visual feedback, but let server decide if boss is actually defeated
+            gameState.boss.takeDamage(projectile.damage, projectile.owner, false); // Don't trigger death locally
+            console.log('After damage - Boss health:', gameState.boss.health);
             
             // Update the UI health bar
             window.gameUI.updateBossHealth(gameState.boss.health, gameState.boss.maxHealth);
-            
-            // Handle boss defeat locally
-            if (wasDestroyed) {
-              console.log('Boss defeated locally!');
-              
-              // Play death animation instead of immediately removing
-              createBossDeathAnimation(gameState.boss.mesh, scene);
-              
-              // Set boss references to null after animation starts
-              // The animation will remove the mesh from the scene when done
-              gameState.boss = null;
-              gameState.bossMesh = null;
-              window.gameUI.updateBossHealth(0, 100);
-              
-              // Start the respawn timer
-              startBossRespawnTimer();
-              
-              // Notify server
-              socket.emit('bossDefeated');
-            }
           } else {
             console.error('Boss has no takeDamage method!', gameState.boss);
           }
           
-          // Also send to server for multiplayer sync
+          // ALWAYS send to server for multiplayer sync
           socket.emit('bossHit', {
             damage: projectile.damage,
             projectileType: projectile.type
@@ -1325,20 +1311,19 @@ function startBossRespawnTimer() {
   // Show grace period notification with countdown
   window.gameUI.showGracePeriod(gameState.gracePeriodDuration);
   
-  // Schedule warning and respawn
+  // Schedule warning notification
   gameState.bossRespawnTimer = setTimeout(() => {
     // Show warning notification
     window.gameUI.showSpawningSoon();
     
-    // Schedule boss respawn after warning duration
-    setTimeout(() => {
-      // Respawn the boss
-      createBoss(scene, gameState);
-      gameState.bossRespawning = false;
-      
-      // Notify server about boss respawn (for multiplayer sync)
-      socket.emit('bossRespawned');
-    }, gameState.respawnWarningDuration * 1000);
+    // REMOVED: Client no longer creates the boss or emits respawn event
+    // The server will send 'bossRespawned' when ready.
+    // setTimeout(() => {
+    //   createBoss(scene, gameState);
+    //   gameState.bossRespawning = false;
+    //   socket.emit('bossRespawned');
+    // }, gameState.respawnWarningDuration * 1000);
+    
   }, gameState.gracePeriodDuration * 1000);
 }
 

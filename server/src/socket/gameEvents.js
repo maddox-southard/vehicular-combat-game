@@ -55,6 +55,12 @@ function setupGameEvents(io, gameState) {
 
       // Send current game state to new player
       socket.emit('gameState', gameState.getCurrentState());
+      
+      // Check if this is the first player and spawn the boss
+      if (gameState.players.size === 1 && !gameState.boss) {
+        console.log('First player joined, initiating initial boss spawn...');
+        respawnBoss(); // Use the existing respawn function to spawn the boss
+      }
     });
 
     // Handle player position updates
@@ -253,7 +259,139 @@ function setupGameEvents(io, gameState) {
         console.log(`Broadcasted transformation of player ${socket.id} to ${data.newVehicleType}`);
       }
     });
+    
+    // Handle direct boss hit event (separate from hitTarget)
+    socket.on('bossHit', (data) => {
+      console.log(`Player ${socket.id} hit the boss for ${data.damage} damage`);
+      
+      // Only process if boss exists
+      if (gameState.boss) {
+        // Apply damage to boss server-side health
+        gameState.boss.health -= data.damage;
+        
+        // Ensure health doesn't go below 0
+        if (gameState.boss.health < 0) {
+          gameState.boss.health = 0;
+        }
+        
+        console.log(`Boss health updated to ${gameState.boss.health}/${gameState.boss.maxHealth}`);
+        
+        // Check if boss is defeated
+        if (gameState.boss.health <= 0) {
+          // Handle boss defeat
+          handleBossDefeat(socket.id);
+        } else {
+          // Broadcast updated health to all players
+          io.emit('bossHit', {
+            health: gameState.boss.health,
+            maxHealth: gameState.boss.maxHealth,
+            attackerId: socket.id
+          });
+        }
+      }
+    });
+    
+    // Handle boss defeat event
+    socket.on('bossDefeated', () => {
+      console.log(`Boss defeated notification from ${socket.id}`);
+      
+      // Only handle if the boss exists
+      if (gameState.boss) {
+        handleBossDefeat(socket.id);
+      }
+    });
   });
+
+  /**
+   * Handle boss defeat on the server
+   * @param {string} killerId - ID of the player who defeated the boss
+   */
+  function handleBossDefeat(killerId) {
+    console.log(`Boss defeated by player ${killerId}!`);
+    
+    // Broadcast to all clients
+    io.emit('bossDefeated', {
+      killerId: killerId
+    });
+    
+    // Set boss health to zero explicitly
+    if (gameState.boss) {
+      gameState.boss.health = 0;
+    }
+    
+    // Record defeat time and update kill streak if needed
+    const now = Date.now();
+    const bossKillStreak = gameState.bossKillStreak || 0;
+    
+    // Store last defeat time for respawn timing
+    gameState.lastBossDefeatTime = now;
+    gameState.bossKillStreak = bossKillStreak + 1;
+    
+    // Clear any existing boss respawn timer
+    if (gameState.bossRespawnTimer) {
+      clearTimeout(gameState.bossRespawnTimer);
+    }
+    
+    // Set server-side respawn timer
+    gameState.bossRespawnTimer = setTimeout(() => {
+      respawnBoss();
+    }, 35000); // 35 seconds (grace period + warning)
+    
+    // Set boss to null to indicate it's destroyed
+    gameState.boss = null;
+    
+    console.log(`Started boss respawn timer, will respawn in 35 seconds`);
+  }
+  
+  /**
+   * Respawn the boss on the server
+   */
+  function respawnBoss() {
+    console.log('Respawning boss on server');
+    
+    // Calculate difficulty based on player count and kill streak
+    const playerCount = gameState.players.size;
+    const killStreak = gameState.bossKillStreak || 0;
+    const difficulty = 1 + (0.2 * Math.min(playerCount - 1, 3)) + (0.2 * killStreak);
+    
+    // Create new boss data
+    gameState.boss = {
+      id: 'boss', // Add an ID for consistency if needed client-side
+      type: 'SemiTrump', // Add type for consistency if needed client-side
+      health: 100 * difficulty,
+      maxHealth: 100 * difficulty,
+      difficulty: difficulty,
+      state: 'spawning',
+      stateTimer: 0, // Initialize state timer
+      stateTimeout: 3000, // Set initial spawning timeout (3 seconds)
+      position: {
+        x: 0,
+        y: 0.2,
+        z: 0
+      },
+      rotation: {
+        y: Math.PI
+      },
+      // Initialize other necessary properties if updateBoss expects them
+      lastAttackTime: 0,
+      target: null,
+      perimeterWaypoints: null, // Ensure waypoints are reset
+      currentWaypointIndex: 0
+    };
+    
+    // Clear respawn timer reference stored in gameState
+    if (gameState.bossRespawnTimer) { // Check if timer exists before clearing
+      clearTimeout(gameState.bossRespawnTimer);
+      gameState.bossRespawnTimer = null;
+    }
+    
+    // Broadcast boss respawn to all clients
+    io.emit('bossRespawned', {
+      boss: gameState.boss // Send the full new boss object
+    });
+    
+    console.log(`Boss respawned with difficulty ${difficulty}`);
+  }
 
   // Set up pickup respawn timer
   setInterval(() => {
