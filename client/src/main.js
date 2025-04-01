@@ -9,7 +9,9 @@ import { createAerialCamera, updateAerialCamera } from './game/core/AerialCamera
 import { initializeRespawn, startRespawn, updateRespawn, createRespawnUI } from './game/core/Respawn';
 import { createMap } from './game/map/Map';
 import { Vehicle } from './game/vehicles/Vehicle';
+import { createVehicleMesh } from './game/vehicles/VehicleMeshFactory';
 import { createPickupMesh } from './game/pickups/PickupMeshFactory';
+import { EasterEggPickup } from './game/pickups/EasterEggPickup';
 import { GameUI } from './game/ui/GameUI';
 import { createBossMesh, createBossInstance } from './game/boss/BossMeshFactory';
 import { Projectile } from './game/weapons/Projectile';
@@ -68,6 +70,10 @@ function init() {
 
   // Create the map early so it's visible during vehicle selection
   gameState.map = createMap(scene);
+
+  // ADD EASTER EGG PICKUP HERE (after scene and map are ready)
+  // Ensure this runs only once, perhaps better inside initializeGameState
+  // For now, let's put the logic inside initializeGameState/initializeGameWithPortal
 
   // Check for portal parameters
   const portalParams = checkForPortalParameters();
@@ -159,6 +165,14 @@ function selectVehicleAndJoinGame(vehicleType, playerName) {
 
   // Initialize game with selected vehicle
   initializeGameState(scene, vehicleType, playerName, socket, gameState);
+
+  // ADD EASTER EGG PICKUP INITIALIZATION HERE TOO
+  if (!gameState.easterEggPickup) {
+      const eggPosition = new THREE.Vector3(0, 0.5, 0); // Center of the map
+      gameState.easterEggPickup = new EasterEggPickup(scene, eggPosition);
+      gameState.easterEggPickup.spawn();
+      console.log("Easter Egg Pickup created and spawned during normal init.");
+  }
 
   // Initialize weapon UI with initial weapon state
   if (gameState.localPlayer && gameState.localPlayer.vehicle) {
@@ -269,6 +283,16 @@ function initializeGameWithPortal(scene, vehicleType, playerName, socket, gameSt
 
   // Create boss
   createBoss(scene, gameState);
+  
+  // Create and spawn the Easter Egg pickup if it doesn't exist
+  if (!gameState.easterEggPickup) {
+      const eggPosition = new THREE.Vector3(0, 0.5, 0); // Center of the map
+      gameState.easterEggPickup = new EasterEggPickup(scene, eggPosition);
+      gameState.easterEggPickup.spawn(); // Spawn it immediately
+      // Add it to the main pickups array for update loop, but mark it
+      // gameState.pickups.push(gameState.easterEggPickup); // Add this later in update logic perhaps? Or handle separately. Let's handle separately for now.
+      console.log("Easter Egg Pickup created and spawned.");
+  }
 
   return gameState;
 }
@@ -386,23 +410,26 @@ function setupSocketHandlers() {
   socket.on('pickupCollected', (data) => {
     console.log('Pickup collected:', data);
 
-    // Remove pickup from scene and state
-    const pickup = gameState.pickups.find(p => p.id === data.id);
-    if (pickup) {
-      scene.remove(pickup.mesh);
-      gameState.pickups = gameState.pickups.filter(p => p.id !== data.id);
+    // Find the pickup by ID (excluding the local Easter Egg pickup)
+    const pickupIndex = gameState.pickups.findIndex(p => p.id === data.id);
+    if (pickupIndex !== -1) {
+        const pickup = gameState.pickups[pickupIndex];
+        scene.remove(pickup.mesh);
+        gameState.pickups.splice(pickupIndex, 1); // Remove from array
 
-      // If collected by local player, apply effect
-      if (data.playerId === socket.id && gameState.localPlayer) {
-        gameState.localPlayer.vehicle.handlePickupCollection(data.type);
+        // If collected by local player, apply effect
+        if (data.playerId === socket.id && gameState.localPlayer) {
+            gameState.localPlayer.vehicle.handlePickupCollection(data.type);
 
-        // Force immediate UI update
-        window.gameUI.updateWeaponSystem(
-          gameState.localPlayer.vehicle.weapons,
-          gameState.localPlayer.vehicle.currentWeapon,
-          gameState.localPlayer.vehicle.weaponAmmo
-        );
-      }
+            // Force immediate UI update
+            window.gameUI.updateWeaponSystem(
+                gameState.localPlayer.vehicle.weapons,
+                gameState.localPlayer.vehicle.currentWeapon,
+                gameState.localPlayer.vehicle.weaponAmmo
+            );
+        }
+    } else {
+        console.warn(`Could not find pickup with ID ${data.id} to remove.`);
     }
   });
 
@@ -479,7 +506,7 @@ function setupSocketHandlers() {
       // Use lerp for smoother movement
       const targetPosition = new THREE.Vector3(
         data.position.x,
-        data.position.y || 0.5,
+        data.position.y || 0.2,
         data.position.z
       );
       
@@ -621,6 +648,89 @@ function setupSocketHandlers() {
     // Reset respawn state
     gameState.bossRespawning = false;
   });
+
+  // Handle Easter Egg state from server on initial connection
+  socket.on('easterEggState', (state) => {
+    console.log('Received Easter Egg state:', state);
+    
+    // Initialize Easter Egg if it doesn't exist yet
+    if (!gameState.easterEggPickup) {
+      const eggPosition = new THREE.Vector3(0, 0.5, 0);
+      gameState.easterEggPickup = new EasterEggPickup(scene, eggPosition);
+    }
+    
+    // Set active state based on server
+    if (state.active) {
+      gameState.easterEggPickup.spawn();
+    } else {
+      // It's inactive on the server, so hide it locally
+      gameState.easterEggPickup.isActive = false;
+      gameState.easterEggPickup.mesh.visible = false;
+    }
+  });
+  
+  // Handle Easter Egg collected by another player
+  socket.on('easterEggCollected', (data) => {
+    console.log('Easter Egg collected by player:', data.playerId);
+    
+    // If we have the Easter Egg locally, hide it
+    if (gameState.easterEggPickup) {
+      gameState.easterEggPickup.isActive = false;
+      gameState.easterEggPickup.mesh.visible = false;
+      
+      // Cancel any existing respawn timer to sync with server
+      if (gameState.easterEggPickup.respawnTimer) {
+        clearTimeout(gameState.easterEggPickup.respawnTimer);
+        gameState.easterEggPickup.respawnTimer = null;
+      }
+    }
+  });
+  
+  // Handle Easter Egg respawn event from server
+  socket.on('easterEggRespawned', () => {
+    console.log('Easter Egg respawned');
+    
+    // Spawn the Easter Egg if we have it locally
+    if (gameState.easterEggPickup) {
+      gameState.easterEggPickup.spawn();
+    }
+  });
+
+  // Handler for remote player transformation
+  socket.on('playerTransformed', (data) => {
+      console.log('Player transformed event received:', data);
+      if (data.playerId !== socket.id) {
+          const player = gameState.players.get(data.playerId);
+          if (player && player.vehicle) {
+              console.log(`Transforming remote player ${player.id} to ${data.newVehicleType}`);
+              const vehicle = player.vehicle;
+              
+              // Store old position/rotation before removing mesh
+              const oldPosition = vehicle.mesh.position.clone();
+              const oldRotation = vehicle.mesh.rotation.clone();
+
+              // Remove old mesh
+              scene.remove(vehicle.mesh);
+              
+              // Create and assign new mesh
+              const newMesh = createVehicleMesh(data.newVehicleType);
+              newMesh.position.copy(oldPosition);
+              newMesh.rotation.copy(oldRotation);
+              
+              vehicle.mesh = newMesh;
+              vehicle.type = data.newVehicleType; // Update type
+              vehicle.collisionBox.setFromObject(vehicle.mesh); // Update collision box
+
+              // Add new mesh to scene
+              scene.add(vehicle.mesh);
+              
+              // Re-create name label and health bar for the remote player on the new mesh
+              vehicle.setPlayerName(vehicle.playerName); 
+              
+              // Note: Remote player stats/weapons are not managed client-side beyond visual representation
+          }
+      }
+  });
 }
 
 // Add these helper functions
@@ -694,7 +804,7 @@ function animate(time) {
     }
     
     // Update respawn logic
-    updateRespawn(gameState, delta);
+    updateRespawn(gameState, scene);
   }
   
   // Always update aerial camera when in aerial view mode
@@ -742,6 +852,30 @@ function updateGame(delta, time) {
   // Update pickups
   updatePickups(delta, time);
 
+  // DIRECT BOSS UPDATE - Ensure the boss gets updated with all players
+  if (gameState.boss && gameState.boss.update) {
+    // Create array of all players (including local player)
+    const allPlayers = [];
+    
+    // Add local player if it exists
+    if (gameState.localPlayer) {
+      allPlayers.push(gameState.localPlayer);
+    }
+    
+    // Add all other players
+    gameState.players.forEach(player => {
+      if (player.id !== gameState.localPlayer?.id) {
+        allPlayers.push(player);
+      }
+    });
+    
+    // Log the players we're sending to the boss
+    console.log(`Updating boss with ${allPlayers.length} players`);
+    
+    // Call the boss's update method with the player array
+    gameState.boss.update(allPlayers, delta, time);
+  }
+
   // Check for boss-vehicle collisions
   if (gameState.boss && gameState.boss.mesh) {
     // Create boss bounding box
@@ -761,10 +895,68 @@ function updateGame(delta, time) {
     }
   }
 
-  // Check for pickup collisions
+  // Update Easter Egg Pickup if it exists
+  if (gameState.easterEggPickup) {
+    gameState.easterEggPickup.update(delta);
+  }
+
+  // Check for pickup collisions (including Easter Egg)
   if (gameState.localPlayer && gameState.localPlayer.vehicle) {
     const vehicle = gameState.localPlayer.vehicle;
-    
+    const vehicleBox = vehicle.collisionBox; // Use existing collision box
+
+    // Check Easter Egg collision separately
+    if (gameState.easterEggPickup && gameState.easterEggPickup.isActive) {
+        if (vehicleBox.intersectsBox(gameState.easterEggPickup.boundingBox)) {
+            console.log('Player collided with Easter Egg!');
+            // Collect the pickup
+            const collected = gameState.easterEggPickup.collect(vehicle);
+
+            if (collected) {
+                console.log('Transforming player vehicle to Sweet Tooth');
+                
+                // Notify server that Easter Egg was collected (to sync with other clients)
+                socket.emit('collectEasterEgg');
+                
+                // --- Vehicle Transformation Logic ---
+                const oldPosition = vehicle.mesh.position.clone();
+                const oldRotation = vehicle.mesh.rotation.clone();
+                
+                // Remove old mesh
+                scene.remove(vehicle.mesh);
+                // Dispose old geometry/material if needed (optional for now)
+
+                // Create new mesh
+                const newMesh = createVehicleMesh('sweetTooth'); // Use the factory
+                newMesh.position.copy(oldPosition);
+                newMesh.rotation.copy(oldRotation);
+
+                // Assign new mesh and update properties
+                vehicle.mesh = newMesh;
+                vehicle.type = 'sweetTooth'; // Update vehicle type property
+                vehicle.collisionBox.setFromObject(vehicle.mesh); // Update collision box
+
+                // Add new mesh to scene
+                scene.add(vehicle.mesh);
+                
+                // Re-create and attach the name label and health bar to the new mesh
+                vehicle.setPlayerName(vehicle.playerName);
+
+                // TODO: Update vehicle stats based on Sweet Tooth config?
+                // For now, only mesh/type change as requested.
+                
+                // Notify the server about the transformation, which will broadcast to other players
+                socket.emit('playerTransformed', {
+                    playerId: socket.id,
+                    newVehicleType: 'sweetTooth'
+                });
+                
+                console.log("Emitted playerTransformed event to server");
+            }
+        }
+    }
+
+    // Check regular pickups (server-synced)
     gameState.pickups.forEach((pickup, index) => {
       if (pickup && pickup.mesh) {
         // Create a box for pickup collision detection
@@ -1030,10 +1222,11 @@ function checkAndResolveBossCollision(bossBox, vehicle) {
       // Store original Y position
       const originalY = vehicle.mesh.position.y;
       
-      // Apply horizontal pushback
-      vehicle.mesh.position.add(pushBack.clone().multiplyScalar(bossRatio));
+      // Apply horizontal pushback - only modify X and Z components
+      vehicle.mesh.position.x += pushBack.x * bossRatio;
+      vehicle.mesh.position.z += pushBack.z * bossRatio;
       
-      // Restore original Y position to prevent sinking
+      // Ensure Y position is maintained
       vehicle.mesh.position.y = originalY;
 
       // Calculate relative velocity for horizontal plane only
@@ -1059,7 +1252,8 @@ function checkAndResolveBossCollision(bossBox, vehicle) {
         // Apply velocity changes only to X and Z components
         vehicle.velocity.x += impulse.x * bossRatio;
         vehicle.velocity.z += impulse.z * bossRatio;
-        // Y velocity remains unchanged
+        // Y velocity must be zeroed to prevent any vertical movement
+        vehicle.velocity.y = 0;
 
         // Strong friction for vehicle during collision
         vehicle.velocity.x *= 0.6;

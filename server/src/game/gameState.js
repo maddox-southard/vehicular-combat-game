@@ -192,14 +192,19 @@ function createGameState() {
         // TEMPORARY: Make the boss roam the perimeter instead of following players
         if (!this.boss.perimeterWaypoints) {
           // Define a set of points around the perimeter of the map
-          const mapSize = 160;
-          const margin = 20; // Stay this far from the edge
+          const mapWidth = 160;
+          const mapHeight = 200; // Make height larger than width for rectangular path
+          const margin = 10;
+          
+          // Define a rectangular path around the map perimeter, shifted toward the Washington Monument (south side)
+          const northMargin = 30; // Larger margin on north side (away from monument)
+          const southMargin = 5;  // Smaller margin on south side (closer to monument)
           
           this.boss.perimeterWaypoints = [
-            { x: -mapSize/2 + margin, y: 0, z: -mapSize/2 + margin },  // Top left
-            { x: mapSize/2 - margin, y: 0, z: -mapSize/2 + margin },   // Top right
-            { x: mapSize/2 - margin, y: 0, z: mapSize/2 - margin },    // Bottom right
-            { x: -mapSize/2 + margin, y: 0, z: mapSize/2 - margin }    // Bottom left
+            { x: -mapWidth/2 + margin, y: 0, z: -mapHeight/2 + northMargin },  // Top left (further from monument)
+            { x: mapWidth/2 - margin, y: 0, z: -mapHeight/2 + northMargin },   // Top right (further from monument)
+            { x: mapWidth/2 - margin, y: 0, z: mapHeight/2 - southMargin },    // Bottom right (closer to monument)
+            { x: -mapWidth/2 + margin, y: 0, z: mapHeight/2 - southMargin }    // Bottom left (closer to monument)
           ];
           
           // Start at the first waypoint
@@ -258,9 +263,11 @@ function createGameState() {
      */
     getBossSpawnPosition() {
       // Modified to start at the first corner of the perimeter path
-      const mapSize = 160;
-      const margin = 20;
-      return { x: -mapSize/2 + margin, y: 0.5, z: -mapSize/2 + margin };
+      const mapWidth = 160;
+      const mapHeight = 200;
+      const margin = 10;
+      const northMargin = 30; // Match the value used in waypoints
+      return { x: -mapWidth/2 + margin, y: 0.2, z: -mapHeight/2 + northMargin };
     },
 
     /**

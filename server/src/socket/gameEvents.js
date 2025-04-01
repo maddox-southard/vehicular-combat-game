@@ -18,14 +18,30 @@ function setupGameEvents(io, gameState) {
     { x: 155, y: 3, z: 235 }
   ];
 
+  // Track Easter Egg pickup state
+  let easterEggState = {
+    active: true,
+    position: { x: 0, y: 0.5, z: 0 }, // Center of map
+    respawnTime: 30000, // 30 seconds
+    respawnTimer: null
+  };
+
   // Initialize pickups when game starts
   gameState.initializePickups(SPAWN_POSITIONS);
+
+  // Send Easter Egg state when players connect
+  function broadcastEasterEggState() {
+    io.emit('easterEggState', easterEggState);
+  }
 
   io.on('connection', (socket) => {
     console.log(`Player connected: ${socket.id}`);
 
     // Send current pickups state to new player
     socket.emit('initializePickups', gameState.pickups);
+    
+    // Send current Easter Egg state to new player
+    socket.emit('easterEggState', easterEggState);
 
     // Handle player joining the game
     socket.on('join', (data) => {
@@ -188,6 +204,54 @@ function setupGameEvents(io, gameState) {
       io.emit('playerReady', {
         id: socket.id
       });
+    });
+
+    // Handle Easter Egg pickup collection
+    socket.on('collectEasterEgg', () => {
+      console.log(`Player ${socket.id} collected the Easter Egg pickup`);
+      
+      // Only allow collection if the Easter Egg is active
+      if (easterEggState.active) {
+        // Set Easter Egg as inactive
+        easterEggState.active = false;
+        
+        // Broadcast to all clients that Easter Egg was collected
+        io.emit('easterEggCollected', {
+          playerId: socket.id
+        });
+        
+        // Start respawn timer
+        easterEggState.respawnTimer = setTimeout(() => {
+          // Reactivate Easter Egg
+          easterEggState.active = true;
+          easterEggState.respawnTimer = null;
+          
+          // Broadcast respawn to all clients
+          io.emit('easterEggRespawned');
+          
+          console.log(`Easter Egg pickup respawned after ${easterEggState.respawnTime / 1000} seconds`);
+        }, easterEggState.respawnTime);
+      }
+    });
+
+    // Handle player transformation (Easter Egg pickup)
+    socket.on('playerTransformed', (data) => {
+      console.log(`Player ${socket.id} transformed to vehicle type: ${data.newVehicleType}`);
+      
+      // Update the player's vehicle type in gameState
+      const player = gameState.players.get(socket.id);
+      if (player) {
+        // Update vehicle type
+        player.vehicle = data.newVehicleType;
+        
+        // Broadcast transformation to all other players
+        socket.broadcast.emit('playerTransformed', {
+          playerId: socket.id,
+          newVehicleType: data.newVehicleType
+        });
+        
+        console.log(`Broadcasted transformation of player ${socket.id} to ${data.newVehicleType}`);
+      }
     });
   });
 

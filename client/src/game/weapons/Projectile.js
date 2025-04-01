@@ -9,8 +9,10 @@ export class Projectile {
         this.speed = type === 'specialAttack' ? 1.5 : 2;
         this.damage = type === 'specialAttack' ? 15 : 5;
         this.target = null;
-        this.lifeTime = 5000; // 5 seconds
+        this.lifeTime = 3000; // Reduced from 5000 to 3000 for shorter range
         this.spawnTime = Date.now();
+        this.startPosition = position.clone(); // Store start position to calculate distance
+        this.maxDistance = 50; // Maximum travel distance matching boss missile range
 
         // Create mesh using the same mesh as pickups
         this.mesh = this.createMesh(type);
@@ -535,6 +537,12 @@ export class Projectile {
 
         // Check if projectile is moving too slowly (very minimal movement threshold)
         if (movement.lengthSq() < 0.0001) {
+            return false;
+        }
+
+        // Check if projectile has exceeded maximum travel distance
+        const distanceTraveled = this.mesh.position.distanceTo(this.startPosition);
+        if (distanceTraveled > this.maxDistance) {
             return false;
         }
 

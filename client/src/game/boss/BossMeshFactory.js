@@ -12,12 +12,14 @@ export function createBossMesh() {
     bossMesh.scale.set(1.2, 1.2, 1.2);
     
     // Adjust the position to start at a corner of the map for perimeter roaming
-    bossMesh.position.y = 0.5;
+    bossMesh.position.y = 0.2;
     
     // Position at the first corner of the perimeter route (top left)
-    const mapSize = 160;
-    const margin = 20;
-    bossMesh.position.set(-mapSize/2 + margin, 0.5, -mapSize/2 + margin);
+    const mapWidth = 160;
+    const mapHeight = 200; // Make height larger than width for rectangular path
+    const margin = 10;
+    const northMargin = 30; // Larger margin on north side (away from monument)
+    bossMesh.position.set(-mapWidth/2 + margin, 0.2, -mapHeight/2 + northMargin);
     
     // Rotate the mesh 180 degrees so it faces forward in the direction of travel
     bossMesh.rotation.y = Math.PI;
@@ -44,9 +46,11 @@ export function createBossInstance(scene) {
     semiTrump.mesh.scale.set(1.2, 1.2, 1.2);
     
     // Position at the first corner of the perimeter route (top left)
-    const mapSize = 160;
-    const margin = 20;
-    semiTrump.mesh.position.set(-mapSize/2 + margin, 0.5, -mapSize/2 + margin);
+    const mapWidth = 160;
+    const mapHeight = 200; // Make height larger than width for rectangular path
+    const margin = 10;
+    const northMargin = 30; // Larger margin on north side (away from monument)
+    semiTrump.mesh.position.set(-mapWidth/2 + margin, 0.2, -mapHeight/2 + northMargin);
     
     // Rotate the mesh 180 degrees so it faces forward in the direction of travel
     semiTrump.mesh.rotation.y = Math.PI;

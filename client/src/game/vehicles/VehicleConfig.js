@@ -131,7 +131,7 @@ export const VEHICLES = {
     handling: 2,
     description: 'A menacing ice cream truck with a flaming clown head mounted on top. Fast, heavily armored, and deadly.',
     specialWeapon: 'Fire Missile',
-    modelScale: 1.5
+    modelScale: 1.0
   }
 };
 

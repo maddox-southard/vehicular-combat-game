@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 
 // Respawn configuration
-const RESPAWN_DELAY = 5000; // 5 seconds
+const BASE_RESPAWN_DELAY = 5000; // 5 seconds base time
+const ADDITIONAL_DELAY_PER_DEATH = 5000; // 5 seconds additional per death
 
 /**
  * Initialize the respawn system
@@ -12,9 +13,15 @@ export function initializeRespawn(gameState) {
   gameState.respawn = {
     active: false,
     startTime: 0,
+    totalDelay: 0,
     countdown: 0,
     completed: false
   };
+  
+  // Initialize death counter if it doesn't exist
+  if (!gameState.deathCount) {
+    gameState.deathCount = 0;
+  }
 }
 
 /**
@@ -24,16 +31,43 @@ export function initializeRespawn(gameState) {
 export function startRespawn(gameState) {
   if (!gameState.localPlayer) return;
   
+  // Increment death counter
+  gameState.deathCount = (gameState.deathCount || 0) + 1;
+  
+  // Calculate respawn delay based on death count
+  const respawnDelay = BASE_RESPAWN_DELAY + ((gameState.deathCount - 1) * ADDITIONAL_DELAY_PER_DEATH);
+  
   // Set respawn state
   gameState.respawn.active = true;
   gameState.respawn.startTime = Date.now();
-  gameState.respawn.countdown = RESPAWN_DELAY;
+  gameState.respawn.totalDelay = respawnDelay; // Store the total delay for calculation
+  gameState.respawn.countdown = respawnDelay;
   gameState.respawn.completed = false;
+  
+  // Disable player controls during respawn
+  if (gameState.localPlayer.vehicle) {
+    // Store original controls state to restore later
+    gameState.respawn.originalControls = { ...gameState.localPlayer.vehicle.controls };
+    
+    // Disable all controls
+    for (const key in gameState.localPlayer.vehicle.controls) {
+      gameState.localPlayer.vehicle.controls[key] = false;
+    }
+    
+    // Set isRespawning flag to prevent controls from working
+    gameState.localPlayer.vehicle.isRespawning = true;
+  }
   
   // Show respawn UI
   const respawnUI = document.getElementById('respawn-ui');
   if (respawnUI) {
     respawnUI.style.display = 'flex';
+    
+    // Update death counter in UI
+    const deathCountElement = document.getElementById('death-count');
+    if (deathCountElement) {
+      deathCountElement.textContent = gameState.deathCount;
+    }
   }
 }
 
@@ -47,8 +81,7 @@ export function updateRespawn(gameState, scene) {
   
   // Calculate remaining time
   const elapsed = Date.now() - gameState.respawn.startTime;
-  const remaining = Math.max(0, RESPAWN_DELAY - elapsed);
-  gameState.respawn.countdown = remaining;
+  const remaining = Math.max(0, gameState.respawn.totalDelay - elapsed);
   
   // Update countdown display
   const countdownElement = document.getElementById('respawn-countdown');
@@ -87,9 +120,18 @@ function completeRespawn(gameState, scene) {
   gameState.respawn.active = false;
   gameState.respawn.completed = true;
   
+  // Switch back to normal camera view
+  gameState.useAerialCamera = false;
+  
   // Add vehicle back to scene if it was removed
-  if (!scene.getObjectById(gameState.localPlayer.vehicle.mesh.id)) {
+  if (!scene.children.includes(gameState.localPlayer.vehicle.mesh)) {
     scene.add(gameState.localPlayer.vehicle.mesh);
+  }
+  
+  // Re-enable controls
+  if (gameState.localPlayer.vehicle) {
+    // Remove the respawning flag
+    gameState.localPlayer.vehicle.isRespawning = false;
   }
   
   // Hide respawn UI
@@ -116,7 +158,10 @@ export function createRespawnUI() {
   respawnUI.innerHTML = `
     <div class="respawn-container">
       <h2>VEHICLE DESTROYED</h2>
-      <p class="respawn-message">Enjoy the aerial view of the battlefield while waiting</p>
+      <div class="death-counter">
+        <span>DEATH COUNT:</span>
+        <div id="death-count">0</div>
+      </div>
       <div class="respawn-timer">
         <span>RESPAWNING IN</span>
         <div id="respawn-countdown">5</div>
@@ -157,6 +202,20 @@ export function createRespawnUI() {
       font-size: 16px;
       margin: 15px 0;
       color: #ccc;
+    }
+    .death-counter {
+      margin: 15px 0;
+    }
+    .death-counter span {
+      font-size: 18px;
+      font-weight: bold;
+      color: #ff6666;
+    }
+    #death-count {
+      font-size: 30px;
+      font-weight: bold;
+      margin-top: 5px;
+      color: #ff0000;
     }
     .respawn-timer {
       margin-top: 20px;

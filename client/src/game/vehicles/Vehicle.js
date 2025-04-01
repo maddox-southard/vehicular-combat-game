@@ -219,6 +219,11 @@ export class Vehicle {
    * @param {number} delta Time since last update in seconds
    */
   updateMovement(delta) {
+    // Skip movement if vehicle is respawning
+    if (this.isRespawning) {
+      return;
+    }
+    
     // Apply acceleration based on controls
     if (this.controls.forward) {
       this.velocity.z -= this.acceleration * delta;
@@ -248,12 +253,21 @@ export class Vehicle {
     // Update rotation
     this.mesh.rotation.y += this.rotationVelocity;
 
+    // Ensure no Y velocity at any time
+    this.velocity.y = 0;
+
     // Move in the direction we're facing
     const movement = this.velocity.clone();
     movement.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.mesh.rotation.y);
+    
+    // Ensure no Y movement at any time
+    movement.y = 0;
 
     // Apply movement
     this.mesh.position.add(movement);
+    
+    // Lock Y position at a constant value to prevent any vertical movement
+    this.mesh.position.y = 0.2; // Lower height for vehicles to appear on the ground
   }
 
   /**
@@ -305,6 +319,140 @@ export class Vehicle {
     // This method will be called when vehicle health reaches 0
     // The implementation can be extended by game logic
     console.log(`Vehicle ${this.type} destroyed`);
+    
+    // Play death animation and remove vehicle from scene
+    if (this.mesh && this.scene) {
+      this.createDeathAnimation(this.scene);
+    }
+  }
+
+  /**
+   * Create death animation for vehicle
+   * @param {THREE.Scene} scene The Three.js scene
+   */
+  createDeathAnimation(scene) {
+    if (!this.mesh || !scene) return;
+    
+    // Store original position
+    const originalPosition = this.mesh.position.clone();
+    
+    // Create explosion particles
+    const particleCount = 50;
+    const particles = new THREE.Group();
+    
+    // Create different colored particle geometries
+    const particleGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+    const particleMaterials = [
+      new THREE.MeshBasicMaterial({ color: 0xff0000 }), // red
+      new THREE.MeshBasicMaterial({ color: 0xff7700 }), // orange
+      new THREE.MeshBasicMaterial({ color: 0xffff00 }), // yellow
+      new THREE.MeshBasicMaterial({ color: 0xffffff }), // white
+      new THREE.MeshBasicMaterial({ color: 0x555555 }), // dark gray (smoke)
+    ];
+    
+    // Create particle meshes
+    for (let i = 0; i < particleCount; i++) {
+      const material = particleMaterials[Math.floor(Math.random() * particleMaterials.length)];
+      const particle = new THREE.Mesh(particleGeometry, material);
+      
+      // Random positions relative to vehicle center
+      particle.position.set(
+        originalPosition.x + (Math.random() - 0.5) * 3,
+        originalPosition.y + (Math.random() - 0.5) * 3,
+        originalPosition.z + (Math.random() - 0.5) * 3
+      );
+      
+      // Random velocities
+      particle.userData.velocity = new THREE.Vector3(
+        (Math.random() - 0.5) * 0.3,
+        Math.random() * 0.2,
+        (Math.random() - 0.5) * 0.3
+      );
+      
+      // Random rotation speeds
+      particle.userData.rotationSpeed = {
+        x: (Math.random() - 0.5) * 0.2,
+        y: (Math.random() - 0.5) * 0.2,
+        z: (Math.random() - 0.5) * 0.2
+      };
+      
+      // Random scale
+      const scale = 0.2 + Math.random() * 0.6;
+      particle.scale.set(scale, scale, scale);
+      
+      particles.add(particle);
+    }
+    
+    scene.add(particles);
+    
+    // Create explosion effect at the center
+    const explosionGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+    const explosionMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xff5500, 
+      transparent: true, 
+      opacity: 1 
+    });
+    const explosionMesh = new THREE.Mesh(explosionGeometry, explosionMaterial);
+    explosionMesh.position.copy(originalPosition);
+    explosionMesh.scale.set(1, 1, 1);
+    scene.add(explosionMesh);
+    
+    // Duration for animation
+    const animationDuration = 1500; // 1.5 seconds
+    const startTime = Date.now();
+    
+    // Remove vehicle temporarily from scene during respawn
+    if (this.mesh.parent) {
+      scene.remove(this.mesh);
+    }
+    
+    // Animation loop
+    const animateExplosion = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      
+      // Animate particles
+      particles.children.forEach(particle => {
+        // Move based on velocity
+        particle.position.add(particle.userData.velocity);
+        
+        // Add gravity effect
+        particle.userData.velocity.y -= 0.01;
+        
+        // Rotate the particle
+        particle.rotation.x += particle.userData.rotationSpeed.x;
+        particle.rotation.y += particle.userData.rotationSpeed.y;
+        particle.rotation.z += particle.userData.rotationSpeed.z;
+        
+        // Fade out particles
+        if (particle.material.opacity !== undefined) {
+          particle.material.transparent = true;
+          particle.material.opacity = Math.max(0, 1 - progress);
+        }
+      });
+      
+      // Animate explosion
+      if (progress < 0.3) {
+        // Expand explosion
+        const explosionScale = 1 + progress * 10;
+        explosionMesh.scale.set(explosionScale, explosionScale, explosionScale);
+      } else {
+        // Fade out explosion
+        explosionMesh.material.opacity = Math.max(0, 1 - ((progress - 0.3) / 0.7));
+      }
+      
+      // Continue animation or clean up
+      if (progress < 1) {
+        requestAnimationFrame(animateExplosion);
+      } else {
+        // Clean up
+        scene.remove(particles);
+        scene.remove(explosionMesh);
+      }
+    };
+    
+    // Start animation
+    animateExplosion();
   }
 
   /**
@@ -317,59 +465,147 @@ export class Vehicle {
   }
 
   /**
-   * Fire the current weapon
-   * @param {THREE.Scene} scene The scene to add projectiles to
-   * @param {Vehicle} boss The boss vehicle
-   * @returns {Object|null} The projectile if fired, null otherwise
+   * Fire current weapon
+   * @param {THREE.Scene} scene The Three.js scene
+   * @param {Object} boss The boss object to target for guided weapons
+   * @returns {Projectile|null} The created projectile or null if firing failed
    */
   fireWeapon(scene, boss) {
-    // Use provided scene or stored scene reference
-    const targetScene = scene || this.scene;
-    if (!targetScene) return null;
-
-    // Handle different weapon types
-    switch (this._currentWeapon) {
-      case WEAPON_TYPES.MACHINE_GUN:
-        const currentTime = Date.now();
-        const fireInterval = 200;
-
-        if (currentTime > (this.lastFireTime || 0) + fireInterval) {
-          // Emit fire event to server
-          if (window.socket) {
-            const position = this.mesh.position.clone();
-            const direction = new THREE.Vector3(0, 0, -1)
-              .applyQuaternion(this.mesh.quaternion);
-
-            console.log('Emitting fireWeapon event:', {
-              type: 'machineGun',
-              position: position,
-              direction: direction
-            });
-
-            window.socket.emit('fireWeapon', {
-              type: 'machineGun',
-              position: {
-                x: position.x,
-                y: position.y,
-                z: position.z
-              },
-              direction: {
-                x: direction.x,
-                y: direction.y,
-                z: direction.z
-              }
-            });
-          }
-          this.lastFireTime = currentTime;
-        }
-        break;
-
-      case WEAPON_TYPES.SPECIAL_ATTACK:
-        // Fire a special missile
-        this.fireSpecialAttack();
-        break;
+    // Skip if respawning
+    if (this.isRespawning) {
+      return null;
     }
-    return null;
+
+    // Get current weapon type
+    const weaponType = this._currentWeapon;
+    
+    // Check if we have ammo for this weapon (except machine gun which has infinite)
+    if (weaponType !== WEAPON_TYPES.MACHINE_GUN) {
+      const ammo = this.weaponAmmo.get(weaponType) || 0;
+      if (ammo <= 0) {
+        console.log('No ammo for', weaponType);
+        return null;
+      }
+    }
+    
+    // Create a new projectile at the vehicle's position
+    const position = this.mesh.position.clone();
+    
+    // Calculate direction based on vehicle's orientation
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(this.mesh.quaternion);
+    
+    // Create the projectile
+    const projectile = new Projectile(weaponType, position, direction, this);
+    
+    // Add to scene
+    scene.add(projectile.mesh);
+    
+    // Emit weapon fire event for multiplayer
+    console.log('Emitting fireWeapon event:', {
+      type: weaponType,
+      position: position,
+      direction: direction
+    });
+    
+    if (window.socket) {
+      window.socket.emit('fireWeapon', {
+        type: weaponType,
+        position: position,
+        direction: direction
+      });
+    }
+    
+    // Play sound effect based on weapon type
+    this.playWeaponSound(weaponType);
+    
+    // Update UI
+    this.updateAmmoUI();
+    
+    // Special case for specialAttack
+    if (weaponType === WEAPON_TYPES.SPECIAL_ATTACK) {
+      // Handle guided missiles or special effects for some vehicle types
+      if (boss && this.type === 'spectre') {
+        // Make ghost missile target the boss
+        projectile.setTarget(boss);
+      }
+    }
+    
+    return projectile;
+  }
+
+  /**
+   * Fire special attack
+   */
+  fireSpecialAttack() {
+    // Skip if respawning
+    if (this.isRespawning) {
+      return;
+    }
+    
+    // Check if we have special attack ammo
+    const ammo = this.weaponAmmo.get(WEAPON_TYPES.SPECIAL_ATTACK) || 0;
+    if (ammo <= 0) {
+      // Play "empty" sound effect
+      this.playEmptySound();
+      return;
+    }
+    
+    // Decrease ammo
+    this.weaponAmmo.set(WEAPON_TYPES.SPECIAL_ATTACK, ammo - 1);
+    
+    // Create projectile (handled by scene in game logic)
+    const position = this.mesh.position.clone();
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(this.mesh.quaternion);
+    
+    // Emit weapon fire event for multiplayer
+    console.log('Emitting fireWeapon event for special attack');
+    if (window.socket) {
+      window.socket.emit('fireWeapon', {
+        type: WEAPON_TYPES.SPECIAL_ATTACK,
+        position: position,
+        direction: direction
+      });
+    }
+    
+    // Update UI
+    this.updateAmmoUI();
+  }
+
+  /**
+   * Fire machine gun
+   */
+  fireMachineGun() {
+    // Skip if respawning
+    if (this.isRespawning) {
+      return;
+    }
+    
+    // Machine gun has no ammo limit
+    // Create projectile (handled by scene in game logic)
+    const position = this.mesh.position.clone();
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(this.mesh.quaternion);
+    
+    // Add slight randomness to machine gun direction (spread)
+    const spread = 0.05;
+    direction.x += (Math.random() - 0.5) * spread;
+    direction.y += (Math.random() - 0.5) * spread;
+    direction.normalize();
+    
+    // Emit weapon fire event for multiplayer
+    console.log('Emitting fireWeapon event for machine gun');
+    if (window.socket) {
+      window.socket.emit('fireWeapon', {
+        type: WEAPON_TYPES.MACHINE_GUN,
+        position: position,
+        direction: direction
+      });
+    }
+    
+    // Update UI
+    this.updateAmmoUI();
   }
 
   /**
@@ -441,10 +677,22 @@ export class Vehicle {
     const myRatio = myMass / totalMass;
     const otherRatio = otherMass / totalMass;
 
+    // Store original Y positions
+    const myOriginalY = this.mesh.position.y;
+    const otherOriginalY = otherVehicle.mesh.position.y;
+
     // Gentler separation (25% of penetration)
     const pushBack = collision.normal.clone().multiplyScalar(collision.penetration * 0.25);
-    this.mesh.position.add(pushBack.clone().multiplyScalar(otherRatio));
-    otherVehicle.mesh.position.sub(pushBack.clone().multiplyScalar(myRatio));
+    
+    // Apply push back only on X and Z axes
+    this.mesh.position.x += pushBack.x * otherRatio;
+    this.mesh.position.z += pushBack.z * otherRatio;
+    otherVehicle.mesh.position.x -= pushBack.x * myRatio;
+    otherVehicle.mesh.position.z -= pushBack.z * myRatio;
+    
+    // Restore original Y positions
+    this.mesh.position.y = myOriginalY;
+    otherVehicle.mesh.position.y = otherOriginalY;
 
     // Calculate relative velocity
     const relativeVelocity = this.velocity.clone().sub(otherVehicle.velocity);
@@ -462,17 +710,27 @@ export class Vehicle {
     // Reduced impulse effect (40% of original)
     const impulse = collision.normal.clone().multiplyScalar(impulseScalar * 0.4);
 
-    // Apply velocity changes
-    this.velocity.sub(impulse.clone().multiplyScalar(otherRatio));
-    otherVehicle.velocity.add(impulse.clone().multiplyScalar(myRatio));
+    // Apply velocity changes - only to X and Z components
+    this.velocity.x -= impulse.x * otherRatio;
+    this.velocity.z -= impulse.z * otherRatio;
+    otherVehicle.velocity.x += impulse.x * myRatio;
+    otherVehicle.velocity.z += impulse.z * myRatio;
+    
+    // Ensure Y velocities are zero
+    this.velocity.y = 0;
+    otherVehicle.velocity.y = 0;
 
     // Strong friction during collision
     this.velocity.multiplyScalar(0.7);
     otherVehicle.velocity.multiplyScalar(0.7);
+    
+    // Ensure Y velocities are still zero after friction
+    this.velocity.y = 0;
+    otherVehicle.velocity.y = 0;
 
     // Only apply damage on significant high-speed collisions
     const impactForce = Math.abs(velocityAlongNormal) * (myMass + otherMass);
-    const speedThreshold = 1.2; // Higher speed threshold
+    const speedThreshold = 1.2;
 
     if (impactForce > 5 && Math.abs(velocityAlongNormal) > speedThreshold) {
       const now = Date.now();
@@ -506,54 +764,6 @@ export class Vehicle {
         window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
       }
     }
-  }
-
-  // Special weapon methods
-  fireSpecialAttack() {
-    // Only fire if we have a scene
-    if (!this.scene) return;
-    
-    const ammo = this.weaponAmmo.get(WEAPON_TYPES.SPECIAL_ATTACK);
-    if (ammo <= 0) return;
-
-    // Decrease the special attack ammo count when fired
-    this.weaponAmmo.set(WEAPON_TYPES.SPECIAL_ATTACK, ammo - 1);
-
-    // Calculate spawn position
-    const forward = this.getForwardVector();
-    const spawnPos = this.mesh.position.clone().add(forward.multiplyScalar(2));
-    spawnPos.y += 1; // Spawn slightly above vehicle
-
-    // Emit fire event to server so all players can see this special attack
-    if (window.socket) {
-      console.log('Emitting fireWeapon event for special attack');
-
-      window.socket.emit('fireWeapon', {
-        type: 'specialAttack',
-        position: {
-          x: spawnPos.x,
-          y: spawnPos.y,
-          z: spawnPos.z
-        },
-        direction: {
-          x: forward.x,
-          y: forward.y,
-          z: forward.z
-        }
-      });
-    }
-
-    // Play fire sound
-    if (this.soundEnabled) {
-      this.playWeaponSound('specialAttack');
-    }
-    
-    // Force immediate UI update
-    if (window.gameUI) {
-      window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
-    }
-    
-    return null;
   }
 
   /**
@@ -608,6 +818,10 @@ export class Vehicle {
     
     this.playerName = name;
     
+    // Get the model scale for this vehicle type
+    const vehicleConfig = VEHICLES[this.type];
+    const modelScale = vehicleConfig?.modelScale || 1.0; // Default to 1 if not found
+    
     // Remove any existing label
     if (this.nameLabel && this.mesh) {
       this.mesh.remove(this.nameLabel);
@@ -646,10 +860,11 @@ export class Vehicle {
     
     // Create sprite with improved visibility settings
     this.nameLabel = new THREE.Sprite(labelMaterial);
-    this.nameLabel.scale.set(6, 1.5, 1);
+    this.nameLabel.scale.set(6, 1.5, 1); // Scale remains relative to parent
     
-    // Position the label higher above the vehicle
-    this.nameLabel.position.set(0, 4, 0);
+    // Position the label higher above the vehicle, adjusting for model scale
+    const labelBaseYOffset = 4.0; // Desired visual offset
+    this.nameLabel.position.set(0, labelBaseYOffset / modelScale, 0);
     
     // Add label to the vehicle mesh
     this.mesh.add(this.nameLabel);
@@ -658,7 +873,7 @@ export class Vehicle {
     this.nameLabel.renderOrder = 999;
     
     // Create health bar after setting the name
-    this.createHealthBar();
+    this.createHealthBar(); // createHealthBar will also use modelScale
   }
   
   /**
@@ -669,6 +884,10 @@ export class Vehicle {
     if (this.healthBar && this.mesh) {
       this.mesh.remove(this.healthBar);
     }
+
+    // Get the model scale for this vehicle type
+    const vehicleConfig = VEHICLES[this.type];
+    const modelScale = vehicleConfig?.modelScale || 1.0; // Default to 1
     
     // Create health bar group
     this.healthBar = new THREE.Group();
@@ -699,8 +918,9 @@ export class Vehicle {
     this.healthBarFill.scale.x = 1.0; // Full health to start
     this.healthBar.add(this.healthBarFill);
     
-    // Position below the name label
-    this.healthBar.position.set(0, 3.2, 0);
+    // Position below the name label, adjusting for model scale
+    const healthBarBaseYOffset = 3.2; // Desired visual offset (relative to mesh origin)
+    this.healthBar.position.set(0, healthBarBaseYOffset / modelScale, 0);
     
     // Add to mesh
     this.mesh.add(this.healthBar);
@@ -744,43 +964,6 @@ export class Vehicle {
     // Update health bar position if it exists
     if (this.healthBar) {
       this.healthBar.matrixAutoUpdate = true;
-    }
-  }
-
-  /**
-   * Fire the machine gun directly (M key)
-   */
-  fireMachineGun() {
-    // Only fire if we have a scene
-    if (!this.scene) return;
-    
-    const currentTime = Date.now();
-    const fireInterval = 200;
-
-    if (currentTime > (this.lastFireTime || 0) + fireInterval) {
-      // Emit fire event to server
-      if (window.socket) {
-        const position = this.mesh.position.clone();
-        const direction = new THREE.Vector3(0, 0, -1)
-          .applyQuaternion(this.mesh.quaternion);
-
-        console.log('Emitting fireWeapon event for machine gun');
-
-        window.socket.emit('fireWeapon', {
-          type: 'machineGun',
-          position: {
-            x: position.x,
-            y: position.y,
-            z: position.z
-          },
-          direction: {
-            x: direction.x,
-            y: direction.y,
-            z: direction.z
-          }
-        });
-      }
-      this.lastFireTime = currentTime;
     }
   }
 } 

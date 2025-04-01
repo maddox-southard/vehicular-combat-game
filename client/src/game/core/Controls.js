@@ -22,6 +22,12 @@ export function setupControls(vehicle) {
     const key = event.key;
     keysPressed[key] = true;
 
+    // Skip if vehicle is respawning
+    if (vehicle.isRespawning) {
+      event.preventDefault();
+      return;
+    }
+
     // Check if pressed key is mapped to a control
     for (const [control, keys] of Object.entries(keyMap)) {
       if (keys.includes(key)) {
@@ -94,6 +100,12 @@ function setupTouchControls(vehicle) {
 
     button.addEventListener('touchstart', (event) => {
       event.preventDefault();
+      
+      // Skip if vehicle is respawning
+      if (vehicle.isRespawning) {
+        return;
+      }
+      
       if (control === 'machineGun') {
         vehicle.fireMachineGun();
       } else if (control === 'specialAttack') {
