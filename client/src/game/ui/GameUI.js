@@ -5,6 +5,7 @@ export class GameUI {
         this.setupBossHealthBar();
         this.setupPlayerHealthBars();
         this.setupWeaponSystem();
+        this.setupBossRespawnNotifications();
     }
 
     setupBossHealthBar() {
@@ -14,23 +15,26 @@ export class GameUI {
         bossContainer.style.cssText = `
             position: fixed;
             top: 20px;
-            left: 20px;
-            width: 300px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 500px;
             background: rgba(0, 0, 0, 0.5);
             padding: 10px;
             border-radius: 5px;
             display: none;
+            text-align: center;
         `;
 
         // Boss name
         const bossName = document.createElement('div');
         bossName.id = 'boss-name';
-        bossName.textContent = 'Semi Trump';
+        bossName.textContent = 'SEMI-"TRUMP"';
         bossName.style.cssText = `
             color: #ff0000;
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
             margin-bottom: 5px;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
         `;
 
         // Health bar
@@ -38,7 +42,7 @@ export class GameUI {
         healthBar.id = 'boss-health-bar';
         healthBar.style.cssText = `
             width: 100%;
-            height: 20px;
+            height: 25px;
             background: #300;
             border-radius: 3px;
             overflow: hidden;
@@ -49,7 +53,7 @@ export class GameUI {
         healthFill.style.cssText = `
             width: 100%;
             height: 100%;
-            background: #f00;
+            background: #0f0;
             transition: width 0.3s ease;
         `;
 
@@ -84,63 +88,72 @@ export class GameUI {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 200px;
-            background: rgba(0, 0, 0, 0.7);
+            width: 280px;
+            background: rgba(0, 0, 0, 0.8);
             padding: 15px;
             border-radius: 8px;
             font-family: Arial, sans-serif;
             color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.3);
             z-index: 1000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         `;
 
-        // Current weapon header
-        const header = document.createElement('div');
-        header.style.cssText = `
-            font-size: 16px;
+        // Controls header
+        const controlsHeader = document.createElement('div');
+        controlsHeader.style.cssText = `
+            font-size: 18px;
             font-weight: bold;
-            margin-bottom: 10px;
+            text-align: center;
             color: #ffcc00;
-            text-align: center;
+            margin-bottom: 12px;
+            text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
             border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-            padding-bottom: 5px;
+            padding-bottom: 8px;
         `;
-        header.textContent = 'Weapons';
-        container.appendChild(header);
-
-        // Current weapon
-        const currentWeapon = document.createElement('div');
-        currentWeapon.id = 'current-weapon';
-        currentWeapon.style.cssText = `
-            font-size: 14px;
-            margin-bottom: 10px;
-            color: #00ff00;
-        `;
-        container.appendChild(currentWeapon);
-
-        // Weapon list
-        const weaponList = document.createElement('div');
-        weaponList.id = 'weapon-list';
-        weaponList.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        `;
-        container.appendChild(weaponList);
-
-        // Controls hint
+        controlsHeader.textContent = 'CONTROLS';
+        container.appendChild(controlsHeader);
+        
         const controls = document.createElement('div');
+        controls.id = 'controls-container';
         controls.style.cssText = `
-            margin-top: 10px;
-            font-size: 12px;
-            color: #aaaaaa;
-            text-align: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.3);
-            padding-top: 5px;
+            font-size: 14px;
+            color: #ffffff;
+            padding-top: 8px;
         `;
-        controls.innerHTML = '[Q] Switch Weapon<br>[R] Use Special';
+        
+        // Create a styled control label function
+        const createControlLabel = (key, action, ammoType = null, primary = false) => {
+            // If this is a weapon control with ammo, add ammo display
+            let ammoDisplay = '';
+            if (ammoType) {
+                const ammoCount = ammoType === 'machineGun' ? '∞' : '0';
+                const ammoColor = ammoType === 'machineGun' || ammoCount > 0 ? '#00ff00' : '#ff0000';
+                ammoDisplay = `<span style="margin-left: 5px; color: ${ammoColor};" id="ammo-${ammoType}">[${ammoCount}]</span>`;
+            }
+            
+            return `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; ${primary ? 'background: rgba(0,100,200,0.2); padding: 5px; border-radius: 4px;' : ''}">
+                <span style="font-weight: ${primary ? 'bold' : 'normal'}; color: ${primary ? '#ffffff' : '#cccccc'};">
+                    ${action}${ammoDisplay}
+                </span>
+                <span style="display: inline-block; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; margin-left: 5px; color: #ffffff; min-width: 40px; text-align: center; font-weight: bold;">${key}</span>
+            </div>`;
+        };
+        
+        controls.innerHTML = `
+            <div style="display: flex; flex-direction: column;">
+                ${createControlLabel('M', 'Machine Gun', 'machineGun', true)}
+                ${createControlLabel('SPACE', 'Special Attack', 'specialAttack', true)}
+                <div style="height: 10px;"></div>
+                ${createControlLabel('W / ↑', 'Forward')}
+                ${createControlLabel('S / ↓', 'Backward')}
+                ${createControlLabel('A / ←', 'Turn Left')}
+                ${createControlLabel('D / →', 'Turn Right')}
+            </div>
+        `;
+        
         container.appendChild(controls);
-
         document.body.appendChild(container);
     }
 
@@ -152,6 +165,15 @@ export class GameUI {
             container.style.display = 'block';
             const percentage = (health / maxHealth) * 100;
             healthFill.style.width = `${percentage}%`;
+            
+            // Update color based on health percentage
+            if (percentage > 60) {
+                healthFill.style.background = '#0f0'; // Green
+            } else if (percentage > 30) {
+                healthFill.style.background = '#ff0'; // Yellow
+            } else {
+                healthFill.style.background = '#f00'; // Red
+            }
         } else {
             container.style.display = 'none';
         }
@@ -168,6 +190,15 @@ export class GameUI {
         const healthFill = playerBar.querySelector('.health-fill');
         const percentage = (health / maxHealth) * 100;
         healthFill.style.width = `${percentage}%`;
+        
+        // Update color based on health percentage
+        if (percentage > 60) {
+            healthFill.style.background = '#0f0'; // Green
+        } else if (percentage > 30) {
+            healthFill.style.background = '#ff0'; // Yellow
+        } else {
+            healthFill.style.background = '#f00'; // Red
+        }
     }
 
     createPlayerHealthBar(playerId, username) {
@@ -223,61 +254,167 @@ export class GameUI {
     }
 
     updateWeaponSystem(weapons, currentWeapon, ammo) {
-        console.log('UI Update:', {
-            weapons: [...weapons],
-            currentWeapon,
-            ammo: Object.fromEntries(ammo)
-        });
+        // Update ammo counts for weapons in the controls display
+        const machineGunAmmo = document.getElementById('ammo-machineGun');
+        const specialAttackAmmo = document.getElementById('ammo-specialAttack');
+        
+        if (specialAttackAmmo) {
+            const specialAmmoCount = ammo.get('specialAttack') || 0;
+            specialAttackAmmo.textContent = `[${specialAmmoCount}]`;
+            specialAttackAmmo.style.color = specialAmmoCount > 0 ? '#00ff00' : '#ff0000';
+        }
+    }
 
-        const currentWeaponDiv = document.getElementById('current-weapon');
-        const weaponList = document.getElementById('weapon-list');
-
-        if (!currentWeaponDiv || !weaponList) {
-            console.error('Weapon system UI elements not found!');
+    setupBossRespawnNotifications() {
+        // Create boss respawn notification container
+        const container = document.createElement('div');
+        container.id = 'boss-respawn-notification';
+        container.style.position = 'fixed';
+        container.style.top = '80px'; // Position just below boss health bar
+        container.style.left = '50%';
+        container.style.transform = 'translateX(-50%)';
+        container.style.width = '500px';
+        container.style.textAlign = 'center';
+        container.style.fontSize = '32px';
+        container.style.fontWeight = 'bold';
+        container.style.display = 'none';
+        container.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.7)';
+        container.style.zIndex = '1000';
+        
+        // Add countdown element
+        const countdown = document.createElement('div');
+        countdown.id = 'boss-respawn-countdown';
+        countdown.style.fontSize = '24px';
+        countdown.style.marginTop = '10px';
+        
+        container.appendChild(countdown);
+        document.body.appendChild(container);
+    }
+    
+    showGracePeriod(seconds) {
+        let notification = document.getElementById('boss-respawn-notification');
+        
+        // Create notification container if it doesn't exist
+        if (!notification) {
+            console.warn('Boss respawn notification container not found, recreating it');
+            this.setupBossRespawnNotifications();
+            notification = document.getElementById('boss-respawn-notification');
+            if (!notification) {
+                console.error('Failed to create boss respawn notification container');
+                return;
+            }
+        }
+        
+        // Set text and style for grace period
+        notification.textContent = 'GRACE PERIOD';
+        notification.style.color = '#00ff00'; // Green text
+        notification.style.display = 'block';
+        
+        // Create countdown element if it doesn't exist
+        let countdown = document.getElementById('boss-respawn-countdown');
+        if (!countdown) {
+            countdown = document.createElement('div');
+            countdown.id = 'boss-respawn-countdown';
+            countdown.style.fontSize = '24px';
+            countdown.style.marginTop = '10px';
+            notification.appendChild(countdown);
+        }
+        
+        // Start countdown
+        this.updateRespawnCountdown(seconds);
+        
+        // Update countdown every second
+        this.countdownInterval = setInterval(() => {
+            seconds--;
+            this.updateRespawnCountdown(seconds);
+            
+            if (seconds <= 0) {
+                clearInterval(this.countdownInterval);
+            }
+        }, 1000);
+    }
+    
+    showSpawningSoon() {
+        let notification = document.getElementById('boss-respawn-notification');
+        
+        // Create notification container if it doesn't exist
+        if (!notification) {
+            console.warn('Boss respawn notification container not found, recreating it');
+            this.setupBossRespawnNotifications();
+            notification = document.getElementById('boss-respawn-notification');
+            if (!notification) {
+                console.error('Failed to create boss respawn notification container');
+                return;
+            }
+        }
+        
+        // Set text and style for spawning soon warning
+        notification.textContent = 'SEMI-TRUMP IS SPAWNING SOON';
+        notification.style.color = '#ff0000'; // Red text
+        notification.style.display = 'block';
+        
+        // Clear previous countdown
+        const countdown = document.getElementById('boss-respawn-countdown');
+        if (countdown) {
+            countdown.textContent = '';
+        }
+        
+        // Set up flashing effect
+        let visible = true;
+        this.flashInterval = setInterval(() => {
+            visible = !visible;
+            notification.style.visibility = visible ? 'visible' : 'hidden';
+        }, 500); // Flash every 500ms
+        
+        // Show for 5 seconds then hide
+        setTimeout(() => {
+            clearInterval(this.flashInterval);
+            this.hideRespawnNotification();
+        }, 5000);
+    }
+    
+    hideRespawnNotification() {
+        const notification = document.getElementById('boss-respawn-notification');
+        if (notification) {
+            notification.style.display = 'none';
+            notification.style.visibility = 'visible'; // Reset visibility
+        }
+        
+        // Clear any active intervals
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+        if (this.flashInterval) {
+            clearInterval(this.flashInterval);
+            this.flashInterval = null;
+        }
+    }
+    
+    updateRespawnCountdown(seconds) {
+        const countdown = document.getElementById('boss-respawn-countdown');
+        if (!countdown) {
+            console.warn('Boss respawn countdown element not found, recreating it');
+            // Try to get the notification container
+            const notification = document.getElementById('boss-respawn-notification');
+            if (notification) {
+                // Create countdown element again
+                const newCountdown = document.createElement('div');
+                newCountdown.id = 'boss-respawn-countdown';
+                newCountdown.style.fontSize = '24px';
+                newCountdown.style.marginTop = '10px';
+                notification.appendChild(newCountdown);
+                
+                // Format and set time
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+                newCountdown.textContent = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
             return;
         }
-
-        // Update current weapon display
-        const formattedCurrentWeapon = this.formatWeaponName(currentWeapon);
-        currentWeaponDiv.textContent = `Active: ${formattedCurrentWeapon}`;
-        currentWeaponDiv.style.color = '#00ff00';
-
-        // Clear and rebuild weapon list
-        weaponList.innerHTML = '';
-        weapons.forEach(weapon => {
-            const weaponDiv = document.createElement('div');
-            const isCurrentWeapon = weapon === currentWeapon;
-            const ammoCount = weapon === 'machineGun' ? '∞' : ammo.get(weapon) || 0;
-
-            weaponDiv.style.cssText = `
-                padding: 5px 10px;
-                border-radius: 4px;
-                background: ${isCurrentWeapon ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.3)'};
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                transition: background-color 0.3s ease;
-            `;
-
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = this.formatWeaponName(weapon);
-            nameSpan.style.color = isCurrentWeapon ? '#ffcc00' : '#ffffff';
-
-            const ammoSpan = document.createElement('span');
-            ammoSpan.textContent = ammoCount;
-            ammoSpan.style.color = ammoCount > 0 ? '#00ff00' : '#ff0000';
-
-            weaponDiv.appendChild(nameSpan);
-            weaponDiv.appendChild(ammoSpan);
-            weaponList.appendChild(weaponDiv);
-        });
+        
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        countdown.textContent = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
     }
-
-    formatWeaponName(weapon) {
-        switch (weapon) {
-            case 'machineGun': return 'Machine Gun';
-            case 'specialAttack': return 'Special Attack';
-            default: return weapon;
-        }
-    }
-} 
+}

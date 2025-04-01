@@ -51,6 +51,7 @@ export class Vehicle {
     // Player name for display
     this.playerName = null;
     this.nameLabel = null;
+    this.healthBar = null;
 
     // Movement state
     this.velocity = new THREE.Vector3(0, 0, 0);
@@ -89,23 +90,6 @@ export class Vehicle {
     // Store scene reference if provided
     this.scene = config.scene;
 
-    // Add key bindings for weapon switching and firing
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'q' || e.key === 'Q') {
-        this.switchWeapon();
-      }
-      // if (e.key === 'r' || e.key === 'R') {
-      //   if (this.scene) {  // Only fire if we have a scene reference
-      //     // Set fire control to true temporarily
-      //     this.controls.fire = true;
-      //     // Fire weapon immediately
-      //     this.fireWeapon(this.scene, null);
-      //     // Reset fire control
-      //     this.controls.fire = false;
-      //   }
-      // }
-    });
-
     // Initialize UI if it exists
     if (window.gameUI) {
       window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
@@ -128,10 +112,33 @@ export class Vehicle {
 
   /**
    * Switch to the next weapon
+   * @deprecated Use cycleItemForward instead
    */
   switchWeapon() {
+    this.cycleItemForward();
+  }
+
+  /**
+   * Cycle to the next item/weapon
+   */
+  cycleItemForward() {
     if (this.weapons.length > 1) {
       this.currentWeaponIndex = (this.currentWeaponIndex + 1) % this.weapons.length;
+      this._currentWeapon = this.weapons[this.currentWeaponIndex];
+
+      // Force immediate UI update
+      if (window.gameUI) {
+        window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
+      }
+    }
+  }
+
+  /**
+   * Cycle to the previous item/weapon
+   */
+  cycleItemBackward() {
+    if (this.weapons.length > 1) {
+      this.currentWeaponIndex = (this.currentWeaponIndex - 1 + this.weapons.length) % this.weapons.length;
       this._currentWeapon = this.weapons[this.currentWeaponIndex];
 
       // Force immediate UI update
@@ -190,6 +197,11 @@ export class Vehicle {
     // Update the player name label position if it exists
     if (this.nameLabel) {
       this.updateNameLabelPosition();
+    }
+
+    // Update the health bar if it exists
+    if (this.healthBar) {
+      this.updateHealthBar();
     }
 
     // Update damage visuals if needed
@@ -272,6 +284,9 @@ export class Vehicle {
       this.damageLevel = 1;
       this.updateDamageVisuals();
     }
+    
+    // Update the 3D health bar
+    this.updateHealthBar();
 
     // Check if destroyed
     const isDestroyed = this.health <= 0;
@@ -495,30 +510,37 @@ export class Vehicle {
 
   // Special weapon methods
   fireSpecialAttack() {
-    const ammo = this.weaponAmmo.get(this._currentWeapon);
+    // Only fire if we have a scene
+    if (!this.scene) return;
+    
+    const ammo = this.weaponAmmo.get(WEAPON_TYPES.SPECIAL_ATTACK);
     if (ammo <= 0) return;
 
-    this.weaponAmmo.set(this._currentWeapon, ammo - 1);
+    // Decrease the special attack ammo count when fired
+    this.weaponAmmo.set(WEAPON_TYPES.SPECIAL_ATTACK, ammo - 1);
 
     // Calculate spawn position
     const forward = this.getForwardVector();
     const spawnPos = this.mesh.position.clone().add(forward.multiplyScalar(2));
     spawnPos.y += 1; // Spawn slightly above vehicle
 
-    // Create projectile - ensure forward direction is used
-    const projectile = new Projectile(
-      'specialAttack',
-      spawnPos,
-      forward.clone(), // Negate the direction to reverse it
-      this
-    );
+    // Emit fire event to server so all players can see this special attack
+    if (window.socket) {
+      console.log('Emitting fireWeapon event for special attack');
 
-    this.scene.add(projectile.mesh);
-    this.projectiles.push(projectile);
-    
-    // Also add to the gameState.projectiles array for proper tracking
-    if (window.gameState && window.gameState.projectiles) {
-      window.gameState.projectiles.push(projectile);
+      window.socket.emit('fireWeapon', {
+        type: 'specialAttack',
+        position: {
+          x: spawnPos.x,
+          y: spawnPos.y,
+          z: spawnPos.z
+        },
+        direction: {
+          x: forward.x,
+          y: forward.y,
+          z: forward.z
+        }
+      });
     }
 
     // Play fire sound
@@ -526,7 +548,12 @@ export class Vehicle {
       this.playWeaponSound('specialAttack');
     }
     
-    return projectile; // Return the projectile for further processing
+    // Force immediate UI update
+    if (window.gameUI) {
+      window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
+    }
+    
+    return null;
   }
 
   /**
@@ -551,7 +578,9 @@ export class Vehicle {
           this.weapons.push(WEAPON_TYPES.SPECIAL_ATTACK);
           this.weaponAmmo.set(WEAPON_TYPES.SPECIAL_ATTACK, 0);
         }
-        this.weaponAmmo.set(WEAPON_TYPES.SPECIAL_ATTACK, 1);
+        // Increment the Special Attack ammo count (stackable)
+        const currentAmmo = this.weaponAmmo.get(WEAPON_TYPES.SPECIAL_ATTACK) || 0;
+        this.weaponAmmo.set(WEAPON_TYPES.SPECIAL_ATTACK, currentAmmo + 1);
         break;
       case 'fullHealth':
         this.health = this.maxHealth;
@@ -580,43 +609,127 @@ export class Vehicle {
     this.playerName = name;
     
     // Remove any existing label
-    if (this.nameLabel && this.mesh.parent) {
+    if (this.nameLabel && this.mesh) {
       this.mesh.remove(this.nameLabel);
     }
     
     // Create a canvas for the text
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    canvas.width = 256;
-    canvas.height = 64;
+    canvas.width = 512; // Larger canvas for better resolution
+    canvas.height = 128;
     
-    // Draw text on canvas
+    // Draw text on canvas with larger, more visible font
     context.fillStyle = '#ffffff';
-    context.font = 'Bold 24px Arial';
+    context.font = 'Bold 42px Arial';
     context.textAlign = 'center';
-    context.fillText(name, 128, 40);
     
-    // Add a drop shadow for better visibility
+    // Add a stronger drop shadow for better visibility
     context.shadowColor = '#000000';
-    context.shadowBlur = 5;
-    context.fillText(name, 128, 40);
+    context.shadowBlur = 10;
+    context.shadowOffsetY = 4;
+    context.fillText(name, 256, 70);
+    
+    // Add stroke for even better visibility
+    context.strokeStyle = '#000000';
+    context.lineWidth = 3;
+    context.strokeText(name, 256, 70);
     
     // Create texture from canvas
     const texture = new THREE.CanvasTexture(canvas);
     const labelMaterial = new THREE.SpriteMaterial({
       map: texture,
-      transparent: true
+      transparent: true,
+      depthTest: false,  // This ensures it's always visible
+      depthWrite: false  // Prevent depth writing
     });
     
-    // Create sprite
+    // Create sprite with improved visibility settings
     this.nameLabel = new THREE.Sprite(labelMaterial);
-    this.nameLabel.scale.set(4, 1, 1);
+    this.nameLabel.scale.set(6, 1.5, 1);
     
-    // Position the label above the vehicle
-    this.updateNameLabelPosition();
+    // Position the label higher above the vehicle
+    this.nameLabel.position.set(0, 4, 0);
     
     // Add label to the vehicle mesh
     this.mesh.add(this.nameLabel);
+    
+    // Set renderOrder to ensure it renders on top
+    this.nameLabel.renderOrder = 999;
+    
+    // Create health bar after setting the name
+    this.createHealthBar();
+  }
+  
+  /**
+   * Create 3D health bar to display under the player name
+   */
+  createHealthBar() {
+    // Remove any existing health bar
+    if (this.healthBar && this.mesh) {
+      this.mesh.remove(this.healthBar);
+    }
+    
+    // Create health bar group
+    this.healthBar = new THREE.Group();
+    
+    // Create background bar
+    const bgGeometry = new THREE.PlaneGeometry(4, 0.4);
+    const bgMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x333333,
+      transparent: true,
+      opacity: 0.7,
+      depthTest: false,
+      depthWrite: false
+    });
+    const background = new THREE.Mesh(bgGeometry, bgMaterial);
+    this.healthBar.add(background);
+    
+    // Create foreground health bar
+    const fgGeometry = new THREE.PlaneGeometry(4, 0.4);
+    const fgMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+      depthWrite: false
+    });
+    this.healthBarFill = new THREE.Mesh(fgGeometry, fgMaterial);
+    this.healthBarFill.position.z = 0.01; // Slightly in front of background
+    this.healthBarFill.scale.x = 1.0; // Full health to start
+    this.healthBar.add(this.healthBarFill);
+    
+    // Position below the name label
+    this.healthBar.position.set(0, 3.2, 0);
+    
+    // Add to mesh
+    this.mesh.add(this.healthBar);
+    
+    // Set high render order to ensure visibility
+    this.healthBar.renderOrder = 998;
+    
+    // Update the health bar to current health
+    this.updateHealthBar();
+  }
+  
+  /**
+   * Update the health bar to reflect current health
+   */
+  updateHealthBar() {
+    if (!this.healthBar || !this.healthBarFill) return;
+    
+    const healthPercent = this.health / this.maxHealth;
+    this.healthBarFill.scale.x = Math.max(0.01, healthPercent);
+    this.healthBarFill.position.x = -2 * (1 - healthPercent);
+    
+    // Update color based on health
+    if (healthPercent > 0.6) {
+      this.healthBarFill.material.color.setHex(0x00ff00); // Green
+    } else if (healthPercent > 0.3) {
+      this.healthBarFill.material.color.setHex(0xffff00); // Yellow
+    } else {
+      this.healthBarFill.material.color.setHex(0xff0000); // Red
+    }
   }
   
   /**
@@ -625,15 +738,49 @@ export class Vehicle {
   updateNameLabelPosition() {
     if (!this.nameLabel) return;
     
-    // Position label above the vehicle
-    const vehicleSize = new THREE.Vector3();
-    this.collisionBox.getSize(vehicleSize);
-    
-    // Position higher above large vehicles
-    const height = vehicleSize.y + 1.5;
-    this.nameLabel.position.set(0, height, 0);
-    
-    // Make label always face the camera
+    // Force the label to face the camera
     this.nameLabel.matrixAutoUpdate = true;
+    
+    // Update health bar position if it exists
+    if (this.healthBar) {
+      this.healthBar.matrixAutoUpdate = true;
+    }
+  }
+
+  /**
+   * Fire the machine gun directly (M key)
+   */
+  fireMachineGun() {
+    // Only fire if we have a scene
+    if (!this.scene) return;
+    
+    const currentTime = Date.now();
+    const fireInterval = 200;
+
+    if (currentTime > (this.lastFireTime || 0) + fireInterval) {
+      // Emit fire event to server
+      if (window.socket) {
+        const position = this.mesh.position.clone();
+        const direction = new THREE.Vector3(0, 0, -1)
+          .applyQuaternion(this.mesh.quaternion);
+
+        console.log('Emitting fireWeapon event for machine gun');
+
+        window.socket.emit('fireWeapon', {
+          type: 'machineGun',
+          position: {
+            x: position.x,
+            y: position.y,
+            z: position.z
+          },
+          direction: {
+            x: direction.x,
+            y: direction.y,
+            z: direction.z
+          }
+        });
+      }
+      this.lastFireTime = currentTime;
+    }
   }
 } 

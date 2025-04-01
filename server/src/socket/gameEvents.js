@@ -4,12 +4,18 @@
  * @param {Object} gameState Game state object
  */
 function setupGameEvents(io, gameState) {
-  // Define spawn positions at map corners
+  // Define spawn positions at map corners and additional positions in further corners
   const SPAWN_POSITIONS = [
-    { x: -45, y: 1, z: -45 },
-    { x: -45, y: 1, z: 45 },
-    { x: 45, y: 1, z: -45 },
-    { x: 45, y: 1, z: 45 }
+    // Original positions
+    { x: -45, y: 3, z: -45 },
+    { x: -45, y: 3, z: 45 },
+    { x: 45, y: 3, z: -45 },
+    { x: 45, y: 3, z: 45 },
+    // Additional positions at extreme corners (5 units from walls)
+    { x: -155, y: 3, z: -235 },
+    { x: -155, y: 3, z: 235 },
+    { x: 155, y: 3, z: -235 },
+    { x: 155, y: 3, z: 235 }
   ];
 
   // Initialize pickups when game starts
@@ -187,7 +193,7 @@ function setupGameEvents(io, gameState) {
 
   // Set up pickup respawn timer
   setInterval(() => {
-    SPAWN_POSITIONS.forEach(position => {
+    SPAWN_POSITIONS.forEach((position, index) => {
       // Check if position is empty
       const hasPickup = gameState.pickups.some(pickup =>
         pickup.position.x === position.x &&
@@ -195,13 +201,12 @@ function setupGameEvents(io, gameState) {
       );
 
       if (!hasPickup) {
-        // Available pickup types
+        // Available pickup types with 50/50 distribution
         const types = ['specialAttack', 'fullHealth'];
-
-        // Use time-based index for deterministic but changing types
-        const timeIndex = Math.floor(Date.now() / 30000) % types.length;
-        const positionIndex = SPAWN_POSITIONS.findIndex(p => p.x === position.x && p.z === position.z);
-        const type = types[(timeIndex + positionIndex) % types.length];
+        
+        // Simple alternating pattern for 50/50 distribution
+        // Even-indexed positions get one type, odd-indexed get the other
+        const type = types[index % 2];
 
         const pickup = gameState.spawnPickup(position, type);
         io.emit('pickupSpawned', pickup);

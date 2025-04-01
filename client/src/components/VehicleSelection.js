@@ -26,6 +26,9 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
   const vehicleEntries = Object.entries(VEHICLES);
   let currentIndex = 0;
   
+  // Variable to store player name across vehicle changes
+  let playerNameValue = localStorage.getItem('playerName') || '';
+  
   // Vehicle descriptive names mapping
   const vehicleDescriptions = {
     auger: 'Rock Driller',
@@ -63,11 +66,17 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
     const [vehicleId, vehicle] = vehicleEntries[index];
     const vehicleDescription = vehicleDescriptions[vehicleId] || vehicle.name;
     
+    // Check if there's a name input field already and save its value
+    const existingNameInput = document.querySelector('.player-name-input');
+    if (existingNameInput) {
+      playerNameValue = existingNameInput.value;
+    }
+    
     vehicleDisplay.innerHTML = `
       <h3 class="vehicle-name">${vehicleDescription}</h3>
       <div class="vehicle-image"></div>
       <div class="player-name-container">
-        <input type="text" class="player-name-input" placeholder="Enter your name" maxlength="15" value="${localStorage.getItem('playerName') || ''}">
+        <input type="text" class="player-name-input" placeholder="Enter your name" maxlength="15" value="${playerNameValue}">
       </div>
       <div class="vehicle-stats">
         <div class="stat">

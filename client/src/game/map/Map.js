@@ -49,9 +49,9 @@ export function createMap(scene) {
   scene.add(capitolBuilding);
   objects.push(capitolBuilding);
   
-  // Add Capitol Building collider
-  const capitolCollider = new THREE.Box3().setFromObject(capitolBuilding);
-  colliders.push(capitolCollider);
+  // Add Capitol Building collider - using precise colliders instead of one bounding box
+  const capitolColliders = createCapitolBuildingColliders(capitolBuilding, mapWidth);
+  colliders.push(...capitolColliders);
   
   // Create player spawn points - Repositioned to north side, near Capitol, facing the Washington Monument (south)
   const spawnCount = 8;
@@ -404,47 +404,198 @@ function createCapitolBuilding(mapWidth) {
   return group;
 }
 
+/**
+ * Creates precise colliders for the Capitol Building
+ * @param {THREE.Group} capitolBuilding The Capitol Building group
+ * @param {number} mapWidth The width of the map
+ * @returns {Array<THREE.Box3>} Array of collider boxes
+ */
+function createCapitolBuildingColliders(capitolBuilding, mapWidth) {
+  const colliders = [];
+  const buildingWidth = mapWidth * 0.85; // 85% of map width
+  const mainWidth = buildingWidth * 0.6; // Main building is 60% of total width
+  const wingWidth = (buildingWidth - mainWidth) / 2; // Each wing takes up the remaining space
+  
+  // Extract building position for offset calculations
+  const buildingPosition = capitolBuilding.position.clone();
+  
+  // Main building base collider
+  const baseCollider = new THREE.Box3();
+  baseCollider.set(
+    new THREE.Vector3(
+      buildingPosition.x - mainWidth/2,
+      buildingPosition.y,
+      buildingPosition.z - 30
+    ),
+    new THREE.Vector3(
+      buildingPosition.x + mainWidth/2,
+      buildingPosition.y + 20,
+      buildingPosition.z + 30
+    )
+  );
+  colliders.push(baseCollider);
+  
+  // Left wing collider - more precise to match visual shape
+  const leftWingCollider = new THREE.Box3();
+  leftWingCollider.set(
+    new THREE.Vector3(
+      buildingPosition.x - (mainWidth/2 + wingWidth),
+      buildingPosition.y,
+      buildingPosition.z - 25
+    ),
+    new THREE.Vector3(
+      buildingPosition.x - mainWidth/2,
+      buildingPosition.y + 30,
+      buildingPosition.z + 25
+    )
+  );
+  colliders.push(leftWingCollider);
+  
+  // Right wing collider - more precise to match visual shape
+  const rightWingCollider = new THREE.Box3();
+  rightWingCollider.set(
+    new THREE.Vector3(
+      buildingPosition.x + mainWidth/2,
+      buildingPosition.y,
+      buildingPosition.z - 25
+    ),
+    new THREE.Vector3(
+      buildingPosition.x + (mainWidth/2 + wingWidth),
+      buildingPosition.y + 30,
+      buildingPosition.z + 25
+    )
+  );
+  colliders.push(rightWingCollider);
+  
+  // Portico (front entrance) collider - more precise to match visual shape
+  const porticoWidth = mainWidth * 0.4;
+  const porticoCollider = new THREE.Box3();
+  porticoCollider.set(
+    new THREE.Vector3(
+      buildingPosition.x - porticoWidth/2,
+      buildingPosition.y,
+      buildingPosition.z + 30
+    ),
+    new THREE.Vector3(
+      buildingPosition.x + porticoWidth/2,
+      buildingPosition.y + 30,
+      buildingPosition.z + 50
+    )
+  );
+  colliders.push(porticoCollider);
+  
+  // Dome collider - using a box that approximates the dome's circular base
+  const domeRadius = 24; // Match the dome base radius
+  const domeCollider = new THREE.Box3();
+  domeCollider.set(
+    new THREE.Vector3(
+      buildingPosition.x - domeRadius,
+      buildingPosition.y + 20,
+      buildingPosition.z - domeRadius
+    ),
+    new THREE.Vector3(
+      buildingPosition.x + domeRadius,
+      buildingPosition.y + 44, // Height of the dome tip
+      buildingPosition.z + domeRadius
+    )
+  );
+  colliders.push(domeCollider);
+  
+  // Steps collider (for better precision)
+  const stepsWidth = mainWidth * 0.7;
+  const stepsCollider = new THREE.Box3();
+  stepsCollider.set(
+    new THREE.Vector3(
+      buildingPosition.x - stepsWidth/2,
+      buildingPosition.y,
+      buildingPosition.z + 50
+    ),
+    new THREE.Vector3(
+      buildingPosition.x + stepsWidth/2,
+      buildingPosition.y + 4,
+      buildingPosition.z + 60
+    )
+  );
+  colliders.push(stepsCollider);
+  
+  return colliders;
+}
+
 // Billboard class for displaying signs above walls
 class Billboard {
-  constructor(scene, textureURL, width, height, position, rotation) {
+  constructor(scene, textureURLs, width, height, position, rotation) {
     this.scene = scene;
+    this.textureURLs = Array.isArray(textureURLs) ? textureURLs : [textureURLs];
+    this.width = width;
+    this.height = height;
+    this.position = position;
+    this.rotation = rotation;
     this.mesh = null;
     this.light = null;
-    this.createBillboard(textureURL, width, height, position, rotation);
+    this.currentTextureIndex = 0;
+    this.textures = [];
+    
+    // Load all textures
+    this.loadTextures();
+    
+    // Set up initial billboard
+    this.createBillboard();
+    
+    // Set up interval to change textures
+    this.startImageRotation();
+  }
+  
+  loadTextures() {
+    const textureLoader = new THREE.TextureLoader();
+    this.textureURLs.forEach(url => {
+      const texture = textureLoader.load(url);
+      this.textures.push(texture);
+    });
   }
 
-  createBillboard(textureURL, width, height, position, rotation) {
-    // Load texture for the billboard
-    const texture = new THREE.TextureLoader().load(textureURL);
-    
+  createBillboard() {
     // Create material with texture
     const material = new THREE.MeshBasicMaterial({
-      map: texture,
+      map: this.textures[this.currentTextureIndex],
       side: THREE.DoubleSide,
       transparent: true
     });
     
     // Create billboard mesh
     this.mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(width, height),
+      new THREE.PlaneGeometry(this.width, this.height),
       material
     );
     
     // Set position and rotation
-    this.mesh.position.copy(position);
-    this.mesh.rotation.copy(rotation);
+    this.mesh.position.copy(this.position);
+    this.mesh.rotation.copy(this.rotation);
     
     // Add light to make the billboard more visible
     this.light = new THREE.PointLight(0xffffff, 1, 50);
     this.light.position.set(
-      position.x,
-      position.y + 3, // Light positioned above the billboard
-      position.z
+      this.position.x,
+      this.position.y + 3, // Light positioned above the billboard
+      this.position.z
     );
     
     // Add to scene
     this.scene.add(this.mesh);
     this.scene.add(this.light);
+  }
+  
+  startImageRotation() {
+    setInterval(() => {
+      this.currentTextureIndex = (this.currentTextureIndex + 1) % this.textures.length;
+      this.updateTexture();
+    }, 10000); // Change every 5 seconds
+  }
+  
+  updateTexture() {
+    if (this.mesh) {
+      this.mesh.material.map = this.textures[this.currentTextureIndex];
+      this.mesh.material.needsUpdate = true;
+    }
   }
 }
 
@@ -497,6 +648,13 @@ function createBoundaryWallsWithText(width, length, scene) {
   eastWall.receiveShadow = true;
   walls.push(eastWall);
   
+  // All SVG images in assets
+  const svgImages = [
+    '/src/assets/www.maddoxsouthard.com.svg',
+    '/src/assets/www.drive865.com.svg',
+    '/src/assets/www.nsmbl.io.svg'
+  ];
+  
   // East wall billboard - positioned on top of the wall
   const eastBillboardPosition = new THREE.Vector3(
     width/2 + wallThickness/2,           // Same x as wall
@@ -504,9 +662,10 @@ function createBoundaryWallsWithText(width, length, scene) {
     0                                    // Same z as wall
   );
   const eastBillboardRotation = new THREE.Euler(0, -Math.PI / 2, 0);
+  
   const eastBillboard = new Billboard(
     scene,
-    '/src/assets/www.maddoxsouthard.com.svg',
+    svgImages,
     length * 0.25,                 // Width
     length * 0.25 * 0.2,           // Height
     eastBillboardPosition,
@@ -530,9 +689,10 @@ function createBoundaryWallsWithText(width, length, scene) {
     0                                     // Same z as wall
   );
   const westBillboardRotation = new THREE.Euler(0, Math.PI / 2, 0);
+  
   const westBillboard = new Billboard(
     scene,
-    '/src/assets/www.maddoxsouthard.com.svg',
+    svgImages,
     length * 0.25,                 // Width
     length * 0.25 * 0.2,           // Height
     westBillboardPosition,

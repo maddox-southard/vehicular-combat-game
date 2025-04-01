@@ -1,10 +1,18 @@
 import * as THREE from 'three';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 
 // Define pickup colors
 const PICKUP_COLORS = {
     specialAttack: 0xffff00,  // Yellow
     fullHealth: 0xff0000      // Red
 };
+
+// Cache for loaded font to avoid reloading
+let cachedFont = null;
+
+// Font loading promise
+let fontPromise = null;
 
 /**
  * Create a mesh for a pickup
@@ -149,74 +157,82 @@ function createDefaultMesh() {
 
 function createSpecialAttackMesh() {
     const group = new THREE.Group();
-
-    // Create a geometric 3D "S" shape
-    const frontMaterial = new THREE.MeshPhongMaterial({
-        color: 0x0000cc, // Deep blue
+    
+    // Create a temporary placeholder while the font loads
+    const placeholderGeometry = new THREE.TorusGeometry(0.8, 0.3, 16, 50);
+    const specialAttackMaterial = new THREE.MeshPhongMaterial({
+        color: 0x0000ff, // Blue
         emissive: 0x0000aa,
-        emissiveIntensity: 0.2,
+        emissiveIntensity: 0.3,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.9,
+        shininess: 30
     });
     
-    const sideMaterial = new THREE.MeshPhongMaterial({
-        color: 0x9370db, // Medium purple for sides
-        emissive: 0x9370db,
-        emissiveIntensity: 0.2,
-        transparent: true,
-        opacity: 0.9
+    const placeholder = new THREE.Mesh(placeholderGeometry, specialAttackMaterial);
+    group.add(placeholder);
+    
+    // Load the font and create the "S" once it's ready
+    if (!fontPromise) {
+        const loader = new FontLoader();
+        fontPromise = new Promise((resolve) => {
+            loader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', function(font) {
+                cachedFont = font;
+                resolve(font);
+            });
+        });
+    }
+    
+    // Replace the placeholder with actual S when font loads
+    fontPromise.then((font) => {
+        // Remove placeholder
+        group.remove(placeholder);
+        
+        // Create the "S" geometry with proper depth and bevel
+        const textGeometry = new TextGeometry('S', {
+            font: font,
+            size: 1.2,
+            height: 0.4,
+            curveSegments: 12,
+            bevelEnabled: true,
+            bevelThickness: 0.1,
+            bevelSize: 0.05,
+            bevelOffset: 0,
+            bevelSegments: 5
+        });
+        
+        // Center the geometry
+        textGeometry.computeBoundingBox();
+        const centerOffset = new THREE.Vector3();
+        textGeometry.boundingBox.getCenter(centerOffset).negate();
+        
+        // Create a glowing blue material for the S
+        const textMaterial = new THREE.MeshPhongMaterial({
+            color: 0x0055ff,  // Bright blue
+            emissive: 0x0033cc,
+            emissiveIntensity: 0.4,
+            specular: 0x6666ff,
+            shininess: 30,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        // Create the mesh and position it
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        textMesh.position.copy(centerOffset);
+        
+        // Add a subtle glow effect using a point light
+        const glow = new THREE.PointLight(0x0066ff, 1, 3);
+        glow.position.set(0, 0, 0);
+        
+        group.add(textMesh, glow);
     });
     
-    // Create materials array for the cubes (front, side, side, side, side, back)
-    const materials = [
-        sideMaterial, sideMaterial,
-        frontMaterial, sideMaterial,
-        sideMaterial, sideMaterial
-    ];
-
-    // Top horizontal section
-    const topBar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.8, 0.2, 0.3),
-        materials
-    );
-    topBar.position.set(0, 0.9, 0);
-    
-    // Middle horizontal section
-    const middleBar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.8, 0.2, 0.3),
-        materials
-    );
-    middleBar.position.set(0, 0, 0);
-    
-    // Bottom horizontal section
-    const bottomBar = new THREE.Mesh(
-        new THREE.BoxGeometry(0.8, 0.2, 0.3),
-        materials
-    );
-    bottomBar.position.set(0, -0.9, 0);
-    
-    // Top vertical section (right side)
-    const topRight = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.7, 0.3),
-        materials
-    );
-    topRight.position.set(0.3, 0.5, 0);
-    
-    // Bottom vertical section (left side)
-    const bottomLeft = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.7, 0.3),
-        materials
-    );
-    bottomLeft.position.set(-0.3, -0.5, 0);
-    
-    // Add all pieces to the group
-    group.add(topBar, middleBar, bottomBar, topRight, bottomLeft);
-    
-    // Slight rotation to make it more visible
-    group.rotation.y = Math.PI / 4;
+    // Slight rotation to make it more visible from all angles
+    group.rotation.set(0, Math.PI / 4, 0);
     
     // Scaling and floating behavior
-    group.scale.set(2, 2, 2);
+    group.scale.set(1.5, 1.5, 1.5);
     group.userData.floatOffset = Math.random() * Math.PI * 2;
     
     return group;

@@ -12,9 +12,9 @@ export function setupControls(vehicle) {
     backward: ['s', 'ArrowDown'],
     left: ['a', 'ArrowLeft'],
     right: ['d', 'ArrowRight'],
-    fire: ['r', 'R'],
-    special: ['f', 'Control'],
-    switchWeapon: ['e', 'Tab']
+    machineGun: ['m', 'M'],
+    specialAttack: [' '], // Space bar for special attack
+    special: ['f', 'Control']
   };
 
   // Add keydown listener
@@ -25,9 +25,11 @@ export function setupControls(vehicle) {
     // Check if pressed key is mapped to a control
     for (const [control, keys] of Object.entries(keyMap)) {
       if (keys.includes(key)) {
-        // Special case for switch weapon (one-time action)
-        if (control === 'switchWeapon') {
-          vehicle.switchWeapon();
+        // Direct weapon firing
+        if (control === 'machineGun') {
+          vehicle.fireMachineGun();
+        } else if (control === 'specialAttack') {
+          vehicle.fireSpecialAttack();
         } else {
           vehicle.controls[control] = true;
         }
@@ -46,8 +48,8 @@ export function setupControls(vehicle) {
     // Check if released key is mapped to a control
     for (const [control, keys] of Object.entries(keyMap)) {
       if (keys.includes(key)) {
-        // Don't reset switchWeapon (it's a one-time action)
-        if (control !== 'switchWeapon') {
+        // Don't reset direct weapon actions
+        if (control !== 'machineGun' && control !== 'specialAttack') {
           vehicle.controls[control] = false;
         }
 
@@ -92,14 +94,16 @@ function setupTouchControls(vehicle) {
 
     button.addEventListener('touchstart', (event) => {
       event.preventDefault();
-      if (control === 'switchWeapon') {
-        vehicle.switchWeapon();
+      if (control === 'machineGun') {
+        vehicle.fireMachineGun();
+      } else if (control === 'specialAttack') {
+        vehicle.fireSpecialAttack();
       } else {
         vehicle.controls[control] = true;
       }
     });
 
-    if (control !== 'switchWeapon') {
+    if (control !== 'machineGun' && control !== 'specialAttack') {
       button.addEventListener('touchend', (event) => {
         event.preventDefault();
         vehicle.controls[control] = false;
@@ -175,30 +179,22 @@ function createTouchUI() {
   rightControls.style.margin = '10px';
 
   // Action buttons
-  const fireButton = createTouchButton('FIRE', 'fire', {
+  const machineGunButton = createTouchButton('MACHINE GUN', 'machineGun', {
     ...buttonStyles,
     width: '80px',
     height: '80px',
     backgroundColor: 'rgba(255, 50, 50, 0.6)'
   });
 
-  const specialButton = createTouchButton('SPECIAL', 'special', {
+  const specialAttackButton = createTouchButton('SPECIAL ATTACK', 'specialAttack', {
     ...buttonStyles,
     width: '70px',
     height: '70px',
     backgroundColor: 'rgba(50, 50, 255, 0.6)'
   });
 
-  const switchButton = createTouchButton('SWITCH', 'switchWeapon', {
-    ...buttonStyles,
-    width: '60px',
-    height: '60px',
-    backgroundColor: 'rgba(50, 255, 50, 0.6)'
-  });
-
-  rightControls.appendChild(fireButton);
-  rightControls.appendChild(specialButton);
-  rightControls.appendChild(switchButton);
+  rightControls.appendChild(machineGunButton);
+  rightControls.appendChild(specialAttackButton);
 
   // Add controls to the container
   touchControls.appendChild(leftControls);

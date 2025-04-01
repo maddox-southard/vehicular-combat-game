@@ -69,86 +69,363 @@ export class SemiTrump {
     // Create the semi-truck mesh
     const truckGroup = new THREE.Group();
 
-    // Create cabin
-    const cabinGeometry = new THREE.BoxGeometry(5, 5, 8);
-    const cabinMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    // Create cabin - black box truck cabin with proper semi-truck shape
+    const cabinGeometry = new THREE.BoxGeometry(4, 3.5, 5);
+    const cabinMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
     const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
-    cabin.position.set(0, 2.5, -3);
+    cabin.position.set(0, 2.5, -5);
     cabin.castShadow = true;
     cabin.receiveShadow = true;
     truckGroup.add(cabin);
+    
+    // Add cabin roof/extension (sleeper portion)
+    const cabinRoofGeometry = new THREE.BoxGeometry(4, 1, 2);
+    const cabinRoofMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const cabinRoof = new THREE.Mesh(cabinRoofGeometry, cabinRoofMaterial);
+    cabinRoof.position.set(0, 4.5, -4);
+    cabinRoof.castShadow = true;
+    cabinRoof.receiveShadow = true;
+    truckGroup.add(cabinRoof);
+    
+    // Create hood section for the semi-truck
+    const hoodGeometry = new THREE.BoxGeometry(3.8, 1.8, 3);
+    const hoodMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const hood = new THREE.Mesh(hoodGeometry, hoodMaterial);
+    hood.position.set(0, 1.6, -8.5);
+    hood.castShadow = true;
+    hood.receiveShadow = true;
+    truckGroup.add(hood);
+    
+    // Create windshield
+    const windshieldGeometry = new THREE.PlaneGeometry(3.5, 2.5);
+    const windshieldMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x333333,
+      transparent: true,
+      opacity: 0.7
+    });
+    const windshield = new THREE.Mesh(windshieldGeometry, windshieldMaterial);
+    windshield.position.set(0, 3, -7);
+    windshield.rotation.x = Math.PI * 0.2;
+    truckGroup.add(windshield);
 
-    // Create trailer
-    const trailerGeometry = new THREE.BoxGeometry(5, 6, 15);
+    // Create trailer/flatbed - black flatbed
+    const trailerGeometry = new THREE.BoxGeometry(5, 1, 14);
     const trailerMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const trailer = new THREE.Mesh(trailerGeometry, trailerMaterial);
-    trailer.position.set(0, 3, 6);
+    trailer.position.set(0, 1, 4);
     trailer.castShadow = true;
     trailer.receiveShadow = true;
     truckGroup.add(trailer);
 
-    // Create wheels
-    const wheelGeometry = new THREE.CylinderGeometry(1, 1, 0.7, 12);
-    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
-
-    // Cabin wheels
-    const wheelPositions = [
-      { x: -2.5, y: 1, z: -6 },
-      { x: 2.5, y: 1, z: -6 },
-      { x: -2.5, y: 1, z: 0 },
-      { x: 2.5, y: 1, z: 0 }
+    // Add low walls to the flatbed trailer
+    const sideWallGeometry = new THREE.BoxGeometry(0.2, 1, 14);
+    const sideWallMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    
+    // Left wall
+    const leftWall = new THREE.Mesh(sideWallGeometry, sideWallMaterial);
+    leftWall.position.set(-2.4, 1.5, 4);
+    truckGroup.add(leftWall);
+    
+    // Right wall
+    const rightWall = new THREE.Mesh(sideWallGeometry, sideWallMaterial);
+    rightWall.position.set(2.4, 1.5, 4);
+    truckGroup.add(rightWall);
+    
+    // Add missile stand/turret base
+    const turretBaseGeometry = new THREE.CylinderGeometry(1, 1.2, 0.5, 8);
+    const turretBaseMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const turretBase = new THREE.Mesh(turretBaseGeometry, turretBaseMaterial);
+    turretBase.position.set(0, 1.75, 4);
+    turretBase.castShadow = true;
+    turretBase.receiveShadow = true;
+    truckGroup.add(turretBase);
+    
+    // Add missile mount/pivot
+    const mountGeometry = new THREE.BoxGeometry(1.2, 0.8, 1.2);
+    const mountMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
+    const missileMount = new THREE.Mesh(mountGeometry, mountMaterial);
+    missileMount.position.set(0, 2.25, 4);
+    missileMount.castShadow = true;
+    missileMount.receiveShadow = true;
+    truckGroup.add(missileMount);
+    
+    // Add support arms for the missile
+    const armGeometry = new THREE.BoxGeometry(0.2, 1.5, 0.2);
+    const armMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
+    
+    // Left support arm
+    const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+    leftArm.position.set(-0.8, 3, 4);
+    leftArm.castShadow = true;
+    leftArm.receiveShadow = true;
+    truckGroup.add(leftArm);
+    
+    // Right support arm
+    const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+    rightArm.position.set(0.8, 3, 4);
+    rightArm.castShadow = true;
+    rightArm.receiveShadow = true;
+    truckGroup.add(rightArm);
+    
+    // Add control panel for the missile launcher
+    const panelGeometry = new THREE.BoxGeometry(1.5, 0.8, 0.3);
+    const panelMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const controlPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+    controlPanel.position.set(0, 2.25, 5.2);
+    controlPanel.castShadow = true;
+    controlPanel.receiveShadow = true;
+    truckGroup.add(controlPanel);
+    
+    // Add panel buttons/screens
+    const buttonGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+    const buttonMaterials = [
+      new THREE.MeshStandardMaterial({ color: 0xff0000 }),
+      new THREE.MeshStandardMaterial({ color: 0x00ff00 }),
+      new THREE.MeshStandardMaterial({ color: 0x0000ff })
     ];
+    
+    // Add a few buttons
+    for (let i = 0; i < 3; i++) {
+      const button = new THREE.Mesh(buttonGeometry, buttonMaterials[i]);
+      button.position.set(-0.5 + i * 0.5, 2.4, 5.35);
+      controlPanel.add(button);
+    }
 
-    wheelPositions.forEach(pos => {
+    // Create wheels
+    const wheelGeometry = new THREE.CylinderGeometry(1, 1, 0.8, 16);
+    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    
+    // Add wheel rims
+    const rimGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.82, 8);
+    const rimMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+    
+    // Front wheels (steering axle)
+    const frontWheelPositions = [
+      { x: -2, y: 1, z: -8 },
+      { x: 2, y: 1, z: -8 }
+    ];
+    
+    frontWheelPositions.forEach(pos => {
       const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
       wheel.position.set(pos.x, pos.y, pos.z);
       wheel.rotation.z = Math.PI / 2;
       wheel.castShadow = true;
       wheel.receiveShadow = true;
+      
+      // Add wheel rim
+      const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+      rim.rotation.z = Math.PI / 2;
+      wheel.add(rim);
+      
       truckGroup.add(wheel);
     });
-
-    // Trailer wheels
-    const trailerWheelPositions = [
-      { x: -2.5, y: 1, z: 6 },
-      { x: 2.5, y: 1, z: 6 },
-      { x: -2.5, y: 1, z: 9 },
-      { x: 2.5, y: 1, z: 9 },
-      { x: -2.5, y: 1, z: 12 },
-      { x: 2.5, y: 1, z: 12 }
+    
+    // Middle wheels (drive axles - 2 sets of double wheels)
+    const driveAxlePositions = [
+      // First drive axle
+      { x: -2.3, y: 1, z: -3 },
+      { x: 2.3, y: 1, z: -3 },
+      { x: -2.3, y: 1, z: -2 },
+      { x: 2.3, y: 1, z: -2 },
+      // Second drive axle
+      { x: -2.3, y: 1, z: 0 },
+      { x: 2.3, y: 1, z: 0 },
+      { x: -2.3, y: 1, z: 1 },
+      { x: 2.3, y: 1, z: 1 }
     ];
-
+    
+    driveAxlePositions.forEach(pos => {
+      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+      wheel.position.set(pos.x, pos.y, pos.z);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.scale.set(0.8, 0.8, 0.8); // Slightly smaller wheels for the double-wheel setup
+      wheel.castShadow = true;
+      wheel.receiveShadow = true;
+      
+      // Add wheel rim
+      const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+      rim.rotation.z = Math.PI / 2;
+      wheel.add(rim);
+      
+      truckGroup.add(wheel);
+    });
+    
+    // Trailer wheels (two sets of double wheels)
+    const trailerWheelPositions = [
+      // First trailer axle
+      { x: -2.3, y: 1, z: 6 },
+      { x: 2.3, y: 1, z: 6 },
+      { x: -2.3, y: 1, z: 7 },
+      { x: 2.3, y: 1, z: 7 },
+      // Second trailer axle
+      { x: -2.3, y: 1, z: 9 },
+      { x: 2.3, y: 1, z: 9 },
+      { x: -2.3, y: 1, z: 10 },
+      { x: 2.3, y: 1, z: 10 }
+    ];
+    
     trailerWheelPositions.forEach(pos => {
       const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
       wheel.position.set(pos.x, pos.y, pos.z);
       wheel.rotation.z = Math.PI / 2;
+      wheel.scale.set(0.8, 0.8, 0.8); // Slightly smaller wheels for the double-wheel setup
       wheel.castShadow = true;
       wheel.receiveShadow = true;
+      
+      // Add wheel rim
+      const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+      rim.rotation.z = Math.PI / 2;
+      wheel.add(rim);
+      
       truckGroup.add(wheel);
     });
 
-    // Create Trump character in window
+    // Create Trump character for driver's seat
     const trumpHead = new THREE.Group();
 
-    // Head
-    const headGeometry = new THREE.SphereGeometry(0.8, 16, 16);
-    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+    // Head - make more square/blocky to match the pixelated style
+    const headGeometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDAB9 });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     trumpHead.add(head);
 
-    // Hair
-    const hairGeometry = new THREE.BoxGeometry(1.7, 0.6, 1.2);
-    const hairMaterial = new THREE.MeshStandardMaterial({ color: 0xffffaa });
+    // Hair - blonde/yellow hair
+    const hairGeometry = new THREE.BoxGeometry(1.3, 0.4, 1.3);
+    const hairMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFF99 });
     const hair = new THREE.Mesh(hairGeometry, hairMaterial);
     hair.position.set(0, 0.6, 0);
     trumpHead.add(hair);
 
-    // Position Trump in driver's window
-    trumpHead.position.set(-2.5, 4, -3);
+    // Add MAGA hat (red cap)
+    const hatGeometry = new THREE.BoxGeometry(1.2, 0.4, 1);
+    const hatMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000 });
+    const hat = new THREE.Mesh(hatGeometry, hatMaterial);
+    hat.position.set(0, 0.8, 0);
+    trumpHead.add(hat);
+    
+    // Add "MAGA" text (white front part of hat)
+    const magaTextGeometry = new THREE.BoxGeometry(0.8, 0.3, 0.1);
+    const magaTextMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+    const magaText = new THREE.Mesh(magaTextGeometry, magaTextMaterial);
+    magaText.position.set(0, 0.8, 0.55);
+    trumpHead.add(magaText);
+    
+    // Add facial features - frowning face
+    const faceFeatures = new THREE.Group();
+    
+    // Eyes
+    const eyeGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.1);
+    const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x6699CC });
+    
+    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    leftEye.position.set(-0.3, 0.1, 0.6);
+    faceFeatures.add(leftEye);
+    
+    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    rightEye.position.set(0.3, 0.1, 0.6);
+    faceFeatures.add(rightEye);
+    
+    // Mouth (frown)
+    const mouthGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.1);
+    const mouthMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+    const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+    mouth.position.set(0, -0.3, 0.6);
+    faceFeatures.add(mouth);
+    
+    trumpHead.add(faceFeatures);
+    
+    // Position Trump in driver's seat
+    trumpHead.position.set(-2.2, 3, -5);
+    trumpHead.rotation.y = Math.PI * 0.5; // Looking out the driver's window
     truckGroup.add(trumpHead);
+    
+    // Create Trump body (for hanging out the window)
+    const trumpBodyGeometry = new THREE.BoxGeometry(0.8, 1, 0.6);
+    const trumpBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x000066 }); // Blue suit
+    const trumpBody = new THREE.Mesh(trumpBodyGeometry, trumpBodyMaterial);
+    trumpBody.position.set(-2.3, 2.1, -5);
+    trumpBody.rotation.y = Math.PI * 0.5;
+    truckGroup.add(trumpBody);
+    
+    // Add Trump arm hanging out
+    const trumpArmGeometry = new THREE.BoxGeometry(0.3, 0.8, 0.3);
+    const trumpArmMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDAB9 });
+    const trumpArm = new THREE.Mesh(trumpArmGeometry, trumpArmMaterial);
+    trumpArm.position.set(-2.5, 2.5, -5);
+    trumpArm.rotation.y = Math.PI * 0.5;
+    trumpArm.rotation.z = Math.PI * 0.15;
+    truckGroup.add(trumpArm);
+    
+    // Create Elon Musk character operating the missile
+    const muskGroup = new THREE.Group();
+    
+    // Head
+    const muskHeadGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const muskHeadMaterial = new THREE.MeshStandardMaterial({ color: 0xE0C8A0 });
+    const muskHead = new THREE.Mesh(muskHeadGeometry, muskHeadMaterial);
+    muskGroup.add(muskHead);
+    
+    // Short dark hair
+    const muskHairGeometry = new THREE.BoxGeometry(1.1, 0.2, 1.1);
+    const muskHairMaterial = new THREE.MeshStandardMaterial({ color: 0x553311 });
+    const muskHair = new THREE.Mesh(muskHairGeometry, muskHairMaterial);
+    muskHair.position.set(0, 0.5, 0);
+    muskGroup.add(muskHair);
+    
+    // Body (green shirt)
+    const muskBodyGeometry = new THREE.BoxGeometry(1, 1.5, 0.5);
+    const muskBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x006633 });
+    const muskBody = new THREE.Mesh(muskBodyGeometry, muskBodyMaterial);
+    muskBody.position.set(0, -1, 0);
+    muskGroup.add(muskBody);
+    
+    // Legs (blue jeans)
+    const muskLegsGeometry = new THREE.BoxGeometry(0.9, 1.5, 0.5);
+    const muskLegsMaterial = new THREE.MeshStandardMaterial({ color: 0x0044aa });
+    const muskLegs = new THREE.Mesh(muskLegsGeometry, muskLegsMaterial);
+    muskLegs.position.set(0, -2.25, 0);
+    muskGroup.add(muskLegs);
+    
+    // Arms
+    const muskArmGeometry = new THREE.BoxGeometry(0.3, 1, 0.3);
+    const muskArmMaterial = new THREE.MeshStandardMaterial({ color: 0x006633 });
+    
+    // Left arm (bent to hold rocket)
+    const muskLeftArm = new THREE.Mesh(muskArmGeometry, muskArmMaterial);
+    muskLeftArm.position.set(-0.8, -0.8, 0.4);
+    muskLeftArm.rotation.z = Math.PI * 0.5;
+    muskGroup.add(muskLeftArm);
+    
+    // Right arm (bent to hold rocket)
+    const muskRightArm = new THREE.Mesh(muskArmGeometry, muskArmMaterial);
+    muskRightArm.position.set(0.8, -0.8, 0.4);
+    muskRightArm.rotation.z = -Math.PI * 0.5;
+    muskGroup.add(muskRightArm);
+    
+    // Face features
+    const muskFaceGeometry = new THREE.BoxGeometry(0.2, 0.15, 0.1);
+    const muskFaceMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+    
+    const muskLeftEye = new THREE.Mesh(muskFaceGeometry, muskFaceMaterial);
+    muskLeftEye.position.set(-0.25, 0.1, 0.5);
+    muskGroup.add(muskLeftEye);
+    
+    const muskRightEye = new THREE.Mesh(muskFaceGeometry, muskFaceMaterial);
+    muskRightEye.position.set(0.25, 0.1, 0.5);
+    muskGroup.add(muskRightEye);
+    
+    const muskMouth = new THREE.Mesh(muskFaceGeometry, muskFaceMaterial);
+    muskMouth.position.set(0, -0.2, 0.5);
+    muskMouth.scale.set(1.5, 1, 1);
+    muskGroup.add(muskMouth);
+    
+    // Position Elon on the trailer operating the rocket
+    muskGroup.position.set(0, 5, 0);
+    // Rotate slightly to appear to be operating the missile
+    truckGroup.add(muskGroup);
 
-    // Add lights
-    const headlightGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.2, 12);
+    // Add headlights
+    const headlightGeometry = new THREE.BoxGeometry(0.8, 0.5, 0.2);
     const headlightMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffcc,
       emissive: 0xffffcc,
@@ -156,35 +433,65 @@ export class SemiTrump {
     });
 
     const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-    leftHeadlight.position.set(-2, 2, -7);
-    leftHeadlight.rotation.x = Math.PI / 2;
+    leftHeadlight.position.set(-1.5, 1.5, -10);
     truckGroup.add(leftHeadlight);
 
     const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-    rightHeadlight.position.set(2, 2, -7);
-    rightHeadlight.rotation.x = Math.PI / 2;
+    rightHeadlight.position.set(1.5, 1.5, -10);
     truckGroup.add(rightHeadlight);
 
-    // Add a bull bar at the front
-    const bullBarGeometry = new THREE.BoxGeometry(6, 3, 0.5);
-    const bullBarMaterial = new THREE.MeshStandardMaterial({ color: 0x777777 });
-    const bullBar = new THREE.Mesh(bullBarGeometry, bullBarMaterial);
-    bullBar.position.set(0, 2, -7.25);
-    truckGroup.add(bullBar);
+    // Add taillights
+    const taillightGeometry = new THREE.BoxGeometry(0.6, 0.3, 0.1);
+    const taillightMaterial = new THREE.MeshStandardMaterial({
+      color: 0xff0000,
+      emissive: 0xff0000,
+      emissiveIntensity: 0.5
+    });
 
-    // Add exhaust pipes
-    const exhaustGeometry = new THREE.CylinderGeometry(0.3, 0.3, 5, 8);
-    const exhaustMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
+    const leftTaillight = new THREE.Mesh(taillightGeometry, taillightMaterial);
+    leftTaillight.position.set(-2, 1, 11);
+    truckGroup.add(leftTaillight);
 
-    const leftExhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
-    leftExhaust.position.set(-2.5, 6, -3);
-    leftExhaust.rotation.x = Math.PI / 2;
-    truckGroup.add(leftExhaust);
+    const rightTaillight = new THREE.Mesh(taillightGeometry, taillightMaterial);
+    rightTaillight.position.set(2, 1, 11);
+    truckGroup.add(rightTaillight);
 
-    const rightExhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
-    rightExhaust.position.set(2.5, 6, -3);
-    rightExhaust.rotation.x = Math.PI / 2;
-    truckGroup.add(rightExhaust);
+    // Create SPACE X rocket
+    const rocketGroup = new THREE.Group();
+    
+    // Rocket body (cylindrical, white with SPACE X text)
+    const rocketBodyGeometry = new THREE.CylinderGeometry(0.6, 0.6, 6, 16);
+    const rocketBodyMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+    const rocketBody = new THREE.Mesh(rocketBodyGeometry, rocketBodyMaterial);
+    rocketBody.position.set(0, 0, 0);
+    rocketGroup.add(rocketBody);
+    
+    // Rocket nose cone (red tip)
+    const noseConeGeometry = new THREE.ConeGeometry(0.6, 1.5, 16);
+    const noseConeMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const noseCone = new THREE.Mesh(noseConeGeometry, noseConeMaterial);
+    noseCone.position.set(0, 3.75, 0);
+    rocketGroup.add(noseCone);
+    
+    // Black "SPACE" text
+    const spaceTextGeometry = new THREE.BoxGeometry(1.2, 0.5, 0.1);
+    const spaceTextMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+    const spaceText = new THREE.Mesh(spaceTextGeometry, spaceTextMaterial);
+    spaceText.position.set(0, 0, 0.7);
+    rocketGroup.add(spaceText);
+    
+    // Black "X" text
+    const xTextGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.1);
+    const xTextMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+    const xText = new THREE.Mesh(xTextGeometry, xTextMaterial);
+    xText.position.set(0, -1, 0.7);
+    rocketGroup.add(xText);
+    
+    // Position and rotate the rocket on the turret mount
+    rocketGroup.position.set(0, 3.75, 4);
+    // Rotate to show horizontally and slightly elevated for firing
+    rocketGroup.rotation.x = Math.PI / 2; // Slight upward angle
+    truckGroup.add(rocketGroup);
 
     // Add the truck to the main group
     group.add(truckGroup);
@@ -251,44 +558,12 @@ export class SemiTrump {
    * @param {number} time Current time in milliseconds
    */
   update(players, delta, time) {
-    if (players.length === 0) return;
-
-    // Update state timer
-    this.stateTimer += delta * 1000;
-
-    // Check for state transition
-    if (this.stateTimer >= this.stateTimeout) {
-      this.transitionState(players, time);
-    }
-
-    // Execute current state behavior
-    switch (this.currentState) {
-      case 'spawning':
-        this.handleSpawningState(delta);
-        break;
-      case 'patrolling':
-        this.handlePatrollingState(players, delta);
-        break;
-      case 'chasing':
-        this.handleChasingState(players, delta);
-        break;
-      case 'attacking':
-        this.handleAttackingState(players, delta, time);
-        break;
-      case 'enraged':
-        this.handleEnragedState(players, delta, time);
-        break;
-      case 'retreating':
-        this.handleRetreatingState(delta);
-        break;
-    }
-
-    // Update visual effects based on health
-    this.updateVisualEffects(delta, time);
-
+    // TEMPORARY: Only handle perimeter roaming for model examination
+    this.handlePerimeterRoaming(delta);
+    
     // Update health bar
     this.updateHealthBar();
-
+    
     // Make health bar face camera
     const camera = this.scene.getObjectByProperty('type', 'PerspectiveCamera') ||
       this.scene.getObjectByProperty('type', 'OrthographicCamera');
@@ -297,9 +572,170 @@ export class SemiTrump {
       camera.getWorldPosition(cameraPosition);
       this.healthBar.lookAt(cameraPosition);
     }
-
+    
+    // Check for collisions with player vehicles
+    this.checkPlayerCollisions(players);
+    
     // Update bounding box
     this.boundingBox.setFromObject(this.mesh);
+  }
+
+  /**
+   * Check for collisions with player vehicles
+   * @param {Array<Object>} players Array of player objects
+   */
+  checkPlayerCollisions(players) {
+    if (!players) return;
+    
+    // If players is a Map (like in gameState.players), convert to array
+    const playersArray = players instanceof Map ? Array.from(players.values()) : players;
+    
+    for (const player of playersArray) {
+      if (!player.vehicle) continue;
+      
+      const collision = this.checkPlayerCollision(player.vehicle);
+      if (collision) {
+        this.resolvePlayerCollision(player.vehicle, collision);
+      }
+    }
+  }
+
+  /**
+   * Check for collision with a player vehicle
+   * @param {Object} vehicle The player vehicle to check collision with
+   * @returns {Object|null} The collision object if collision detected, null otherwise
+   */
+  checkPlayerCollision(vehicle) {
+    // Check if bounding boxes intersect
+    if (this.boundingBox.intersectsBox(vehicle.collisionBox)) {
+      const bossPos = this.mesh.position;
+      const vehiclePos = vehicle.mesh.position;
+
+      // Calculate collision normal
+      const normal = new THREE.Vector3()
+        .subVectors(vehiclePos, bossPos)
+        .normalize();
+
+      // Calculate penetration depth with collision radius
+      const bossSize = new THREE.Vector3();
+      const vehicleSize = new THREE.Vector3();
+      this.boundingBox.getSize(bossSize);
+      vehicle.collisionBox.getSize(vehicleSize);
+
+      // Use collision radius (30% of sizes, matching vehicle collision)
+      const bossRadius = Math.max(bossSize.x, bossSize.z) * 0.3;
+      const vehicleRadius = Math.max(vehicleSize.x, vehicleSize.z) * 0.3;
+      const distance = bossPos.distanceTo(vehiclePos);
+      const penetration = (bossRadius + vehicleRadius) - distance;
+
+      // Minimum penetration threshold
+      if (penetration > 0.2) {
+        return {
+          normal,
+          penetration,
+          vehicle
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Resolve collision with a player vehicle
+   * @param {Object} vehicle The player vehicle involved in the collision
+   * @param {Object} collision The collision object
+   */
+  resolvePlayerCollision(vehicle, collision) {
+    // Boss should be much heavier than vehicles
+    const bossMass = 4; // Much heavier than regular vehicles
+    const vehicleMass = 1 + (vehicle.armor * 0.2);
+    const totalMass = bossMass + vehicleMass;
+    const bossRatio = bossMass / totalMass;
+    const vehicleRatio = vehicleMass / totalMass;
+
+    // Separation - boss should push vehicles more than it gets pushed
+    const pushBack = collision.normal.clone().multiplyScalar(collision.penetration * 0.3);
+    vehicle.mesh.position.add(pushBack.clone().multiplyScalar(bossRatio));
+    this.mesh.position.sub(pushBack.clone().multiplyScalar(vehicleRatio * 0.2)); // Boss barely moves
+
+    // Calculate relative velocity (if boss has velocity)
+    if (this.velocity) {
+      const relativeVelocity = vehicle.velocity.clone().sub(this.velocity);
+      const velocityAlongNormal = relativeVelocity.dot(collision.normal);
+
+      // Only resolve if objects are moving toward each other
+      if (velocityAlongNormal < 0) {
+        // Low bounce coefficient
+        const restitution = 0.05;
+
+        // Calculate impulse scalar
+        const impulseScalar = -(1 + restitution) * velocityAlongNormal;
+
+        // Reduced impulse effect for gameplay
+        const impulse = collision.normal.clone().multiplyScalar(impulseScalar * 0.5);
+
+        // Apply velocity changes - vehicles get pushed hard, boss barely affected
+        vehicle.velocity.add(impulse.clone().multiplyScalar(bossRatio));
+        if (this.velocity) {
+          this.velocity.sub(impulse.clone().multiplyScalar(vehicleRatio * 0.1));
+        }
+
+        // Strong friction for vehicle during collision
+        vehicle.velocity.multiplyScalar(0.6);
+      }
+    }
+
+    // Apply damage to vehicle on collision
+    const now = Date.now();
+    const cooldown = 1000; // 1 second between collision damage
+    
+    if (!vehicle.lastBossCollisionDamage || now - vehicle.lastBossCollisionDamage > cooldown) {
+      // Calculate damage based on boss's damage stat
+      const damage = this.damage * (this.currentState === 'enraged' ? 1.5 : 1.0);
+      vehicle.takeDamage(damage);
+      
+      // Update collision damage timestamp
+      vehicle.lastBossCollisionDamage = now;
+    }
+  }
+
+  /**
+   * TEMPORARY: Handle perimeter roaming for model examination
+   * @param {number} delta Time since last update in seconds
+   */
+  handlePerimeterRoaming(delta) {
+    // Initialize waypoints if not defined
+    if (!this.perimeterWaypoints) {
+      // Define a set of points around the perimeter of the map
+      // Using a 160x160 map size as in the original getPatrolPoint method
+      const mapSize = 160;
+      const margin = 20; // Stay this far from the edge
+      
+      this.perimeterWaypoints = [
+        new THREE.Vector3(-mapSize/2 + margin, 0, -mapSize/2 + margin),  // Top left
+        new THREE.Vector3(mapSize/2 - margin, 0, -mapSize/2 + margin),   // Top right
+        new THREE.Vector3(mapSize/2 - margin, 0, mapSize/2 - margin),    // Bottom right
+        new THREE.Vector3(-mapSize/2 + margin, 0, mapSize/2 - margin)    // Bottom left
+      ];
+      
+      // Start at the first waypoint
+      this.currentWaypointIndex = 0;
+      this.nextWaypoint = this.perimeterWaypoints[0];
+    }
+    
+    // Move towards the current waypoint
+    const slowSpeed = this.speed; // Move at full speed for better observation
+    this.moveTowards(this.nextWaypoint, slowSpeed, delta);
+    
+    // Check if we've reached the waypoint
+    if (this.mesh.position.distanceTo(this.nextWaypoint) < 5) {
+      // Move to the next waypoint
+      this.currentWaypointIndex = (this.currentWaypointIndex + 1) % this.perimeterWaypoints.length;
+      this.nextWaypoint = this.perimeterWaypoints[this.currentWaypointIndex];
+      
+      // Pause briefly at each corner
+      // This isn't actually implementing a pause, but in a full implementation we would
+    }
   }
 
   /**
@@ -654,8 +1090,8 @@ export class SemiTrump {
 
     // Only update if we have a meaningful direction
     if (direction.lengthSq() > 0.001) {
-      // Get target rotation
-      const targetRotation = Math.atan2(direction.x, direction.z);
+      // Get target rotation and add PI (180 degrees) to make the truck face forward
+      const targetRotation = Math.atan2(direction.x, direction.z) + Math.PI;
 
       // Get current rotation
       let currentRotation = this.mesh.rotation.y;
@@ -797,6 +1233,8 @@ export class SemiTrump {
    * @returns {boolean} True if the boss was destroyed
    */
   takeDamage(amount, attacker) {
+    console.log(`SemiTrump takeDamage called with damage: ${amount}, current health: ${this.health}`);
+    
     // Apply damage
     this.health = Math.max(0, this.health - amount);
 

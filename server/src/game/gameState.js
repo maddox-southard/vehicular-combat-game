@@ -23,12 +23,10 @@ function createGameState() {
       // Available pickup types
       const types = ['specialAttack', 'fullHealth'];
 
-      // Use time-based index for deterministic but changing types
-      const timeIndex = Math.floor(Date.now() / 30000) % types.length;
-
-      // Spawn pickups at each position
+      // Spawn pickups at each position with 50/50 distribution
       spawnPositions.forEach((position, index) => {
-        const type = types[(timeIndex + index) % types.length];
+        // Simple alternating pattern: even indices get specialAttack, odd get fullHealth
+        const type = types[index % 2];
         this.spawnPickup(position, type);
       });
     },
@@ -176,11 +174,7 @@ function createGameState() {
      * @param {SocketIO.Server} io Socket.IO server
      */
     updateBoss(delta, time, io) {
-      // This is a simplified AI update
-      // A more complete implementation would include pathfinding,
-      // state machines, and more complex behaviors
-
-      // For now we'll just update the boss position to follow players
+      // TEMPORARY: Modified to handle perimeter roaming for model examination
       if (this.boss.state === 'spawning') {
         // Just update timer in spawning state
         this.boss.stateTimer += delta * 1000;
@@ -195,42 +189,51 @@ function createGameState() {
           });
         }
       } else {
-        // Find a target if we don't have one
-        if (!this.boss.target) {
-          this.findBossTarget();
+        // TEMPORARY: Make the boss roam the perimeter instead of following players
+        if (!this.boss.perimeterWaypoints) {
+          // Define a set of points around the perimeter of the map
+          const mapSize = 160;
+          const margin = 20; // Stay this far from the edge
+          
+          this.boss.perimeterWaypoints = [
+            { x: -mapSize/2 + margin, y: 0, z: -mapSize/2 + margin },  // Top left
+            { x: mapSize/2 - margin, y: 0, z: -mapSize/2 + margin },   // Top right
+            { x: mapSize/2 - margin, y: 0, z: mapSize/2 - margin },    // Bottom right
+            { x: -mapSize/2 + margin, y: 0, z: mapSize/2 - margin }    // Bottom left
+          ];
+          
+          // Start at the first waypoint
+          this.boss.currentWaypointIndex = 0;
+          this.boss.nextWaypoint = this.boss.perimeterWaypoints[0];
         }
-
-        // Update boss position to follow target
-        if (this.boss.target) {
-          const target = this.players.get(this.boss.target);
-          if (target) {
-            // Move towards target
-            const speed = 0.2 * (1 + (this.boss.difficulty * 0.3)) * delta * 60;
-            const dx = target.position.x - this.boss.position.x;
-            const dz = target.position.z - this.boss.position.z;
-            const distance = Math.sqrt(dx * dx + dz * dz);
-
-            if (distance > 10) { // Only move if not too close
-              const dirX = dx / distance;
-              const dirZ = dz / distance;
-
-              this.boss.position.x += dirX * speed;
-              this.boss.position.z += dirZ * speed;
-
-              // Update rotation to face target
-              this.boss.rotation.y = Math.atan2(dx, dz);
-            }
-
-            // Check for attack
-            if (distance < 15 && time - this.boss.lastAttackTime > this.boss.attackCooldown) {
-              this.bossAttack(target, io);
-              this.boss.lastAttackTime = time;
-            }
-          } else {
-            // Target no longer exists
-            this.boss.target = null;
-          }
+        
+        // Move towards the current waypoint
+        const nextWaypoint = this.boss.nextWaypoint;
+        const slowSpeed = 0.2 * (1 + (this.boss.difficulty * 0.3)) * delta * 60;
+        
+        // Calculate direction
+        const dx = nextWaypoint.x - this.boss.position.x;
+        const dz = nextWaypoint.z - this.boss.position.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        
+        if (distance > 5) {
+          // Move towards waypoint
+          const dirX = dx / distance;
+          const dirZ = dz / distance;
+          
+          this.boss.position.x += dirX * slowSpeed;
+          this.boss.position.z += dirZ * slowSpeed;
+          
+          // Update rotation to face direction of movement
+          this.boss.rotation.y = Math.atan2(dx, dz) + Math.PI;
+        } else {
+          // We've reached the waypoint, move to the next one
+          this.boss.currentWaypointIndex = (this.boss.currentWaypointIndex + 1) % this.boss.perimeterWaypoints.length;
+          this.boss.nextWaypoint = this.boss.perimeterWaypoints[this.boss.currentWaypointIndex];
         }
+        
+        // Clear any existing target so it doesn't try to follow players
+        this.boss.target = null;
       }
 
       // Broadcast boss position updates
@@ -238,36 +241,6 @@ function createGameState() {
         id: this.boss.id,
         position: this.boss.position,
         rotation: this.boss.rotation
-      });
-    },
-
-    /**
-     * Find a target for the boss
-     */
-    findBossTarget() {
-      if (this.players.size === 0) return;
-
-      // Simple logic: pick random player
-      const playerIds = Array.from(this.players.keys());
-      const randomIndex = Math.floor(Math.random() * playerIds.length);
-      this.boss.target = playerIds[randomIndex];
-    },
-
-    /**
-     * Boss attacks a player
-     * @param {Object} target Target player
-     * @param {SocketIO.Server} io Socket.IO server
-     */
-    bossAttack(target, io) {
-      // Calculate damage
-      const baseDamage = 10 * (1 + (this.boss.difficulty * 0.2));
-
-      // Notify clients about attack
-      io.emit('bossAttack', {
-        id: this.boss.id,
-        targetId: target.id,
-        attackType: Math.random() < 0.7 ? 'ram' : 'flamethrower',
-        damage: baseDamage
       });
     },
 
@@ -284,8 +257,10 @@ function createGameState() {
      * @returns {Object} Position object
      */
     getBossSpawnPosition() {
-      // For now, fixed position at south side
-      return { x: 0, y: 0, z: 80 };
+      // Modified to start at the first corner of the perimeter path
+      const mapSize = 160;
+      const margin = 20;
+      return { x: -mapSize/2 + margin, y: 0.5, z: -mapSize/2 + margin };
     },
 
     /**
