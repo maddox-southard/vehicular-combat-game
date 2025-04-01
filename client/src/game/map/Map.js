@@ -402,9 +402,9 @@ function createCapitolBuilding(mapWidth) {
   group.add(domeTip);
 
   // Create backdoor entrance
-  const entranceWidth = mainWidth * 0.2;
-  const entranceHeight = 12;
-  const entranceDepth = 20;
+  const entranceWidth = mainWidth * 0.5;
+  const entranceHeight = 24;
+  const entranceDepth = 48;
 
   // Cut out entrance from main building using CSG or by creating a tunnel
   const entranceGeometry = new THREE.BoxGeometry(entranceWidth, entranceHeight, entranceDepth);

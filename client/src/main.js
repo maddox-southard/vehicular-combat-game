@@ -33,7 +33,8 @@ let gameState = {
   bossRespawnTimer: null,
   bossRespawning: false,
   gracePeriodDuration: 30, // 30 seconds grace period
-  respawnWarningDuration: 5  // 5 seconds warning
+  respawnWarningDuration: 5,  // 5 seconds warning
+  deathCount: 0
 };
 
 // Make gameState globally available
@@ -71,9 +72,13 @@ function init() {
   // Create the map early so it's visible during vehicle selection
   gameState.map = createMap(scene);
 
-  // ADD EASTER EGG PICKUP HERE (after scene and map are ready)
-  // Ensure this runs only once, perhaps better inside initializeGameState
-  // For now, let's put the logic inside initializeGameState/initializeGameWithPortal
+  // ADD EASTER EGG PICKUP INITIALIZATION HERE TOO
+  if (!gameState.easterEggPickup) {
+      const eggPosition = new THREE.Vector3(0, 1.0, -212.5); //Behind capitol building
+      gameState.easterEggPickup = new EasterEggPickup(scene, eggPosition);
+      gameState.easterEggPickup.spawn();
+      console.log("Easter Egg Pickup created and spawned during normal init.");
+  }
 
   // Check for portal parameters
   const portalParams = checkForPortalParameters();
@@ -110,8 +115,16 @@ function startGameWithPortalParams(vehicleType, playerName, portalParams) {
   gameState.running = true;
   gameState.useAerialCamera = false;
 
+  // Reset death counter explicitly
+  if (typeof gameState.deathCount !== 'number') {
+    gameState.deathCount = 0;
+  }
+  
   // Initialize game with selected vehicle and portal parameters
   initializeGameWithPortal(scene, vehicleType, playerName, socket, gameState, portalParams);
+  
+  // Ensure respawn system is initialized
+  initializeRespawn(gameState);
 
   // Initialize weapon UI with initial weapon state
   if (gameState.localPlayer && gameState.localPlayer.vehicle) {
@@ -126,11 +139,18 @@ function startGameWithPortalParams(vehicleType, playerName, portalParams) {
   if (gameState.localPlayer && gameState.localPlayer.vehicle) {
     const originalHandleDeath = gameState.localPlayer.vehicle.handleDeath;
     gameState.localPlayer.vehicle.handleDeath = function () {
-      originalHandleDeath.call(this);
+      // Only call startRespawn if not already respawning
+      if (!gameState.respawn || !gameState.respawn.active) {
+        originalHandleDeath.call(this);
 
-      // Trigger respawn and switch to aerial view
-      gameState.useAerialCamera = true;
-      startRespawn(gameState);
+        // Trigger respawn and switch to aerial view
+        gameState.useAerialCamera = true;
+        startRespawn(gameState);
+        
+        console.log('Started respawn after death');
+      } else {
+        console.log('Ignoring duplicate death call - respawn already active');
+      }
     };
   }
 
@@ -163,8 +183,16 @@ function selectVehicleAndJoinGame(vehicleType, playerName) {
   gameState.running = true;
   gameState.useAerialCamera = false;
 
+  // Reset death counter explicitly
+  if (typeof gameState.deathCount !== 'number') {
+    gameState.deathCount = 0;
+  }
+  
   // Initialize game with selected vehicle
   initializeGameState(scene, vehicleType, playerName, socket, gameState);
+  
+  // Ensure respawn system is initialized
+  initializeRespawn(gameState);
 
   // ADD EASTER EGG PICKUP INITIALIZATION HERE TOO
   if (!gameState.easterEggPickup) {
@@ -187,11 +215,18 @@ function selectVehicleAndJoinGame(vehicleType, playerName) {
   if (gameState.localPlayer && gameState.localPlayer.vehicle) {
     const originalHandleDeath = gameState.localPlayer.vehicle.handleDeath;
     gameState.localPlayer.vehicle.handleDeath = function () {
-      originalHandleDeath.call(this);
+      // Only call startRespawn if not already respawning
+      if (!gameState.respawn || !gameState.respawn.active) {
+        originalHandleDeath.call(this);
 
-      // Trigger respawn and switch to aerial view
-      gameState.useAerialCamera = true;
-      startRespawn(gameState);
+        // Trigger respawn and switch to aerial view
+        gameState.useAerialCamera = true;
+        startRespawn(gameState);
+        
+        console.log('Started respawn after death');
+      } else {
+        console.log('Ignoring duplicate death call - respawn already active');
+      }
     };
   }
 
@@ -442,6 +477,7 @@ function setupSocketHandlers() {
       gameState.boss.health = data.boss.health;
       gameState.boss.maxHealth = data.boss.maxHealth;
       gameState.boss.state = data.boss.state;
+      gameState.boss.level = data.boss.level; // Store the level
       
       // Update position and rotation
       if (data.boss.position) {
@@ -468,6 +504,7 @@ function setupSocketHandlers() {
         gameState.boss.health = data.boss.health;
         gameState.boss.maxHealth = data.boss.maxHealth;
         gameState.boss.state = data.boss.state;
+        gameState.boss.level = data.boss.level; // Store the level
         
         // Set initial position
         if (data.boss.position) {
@@ -489,8 +526,12 @@ function setupSocketHandlers() {
       }
     }
 
-    // Update UI
-    window.gameUI.updateBossHealth(data.boss.health, data.boss.maxHealth);
+    // Update UI with boss health and level
+    window.gameUI.updateBossHealth(
+      data.boss.health, 
+      data.boss.maxHealth,
+      data.boss.level
+    );
   });
 
   socket.on('bossStateChanged', (data) => {
@@ -535,7 +576,11 @@ function setupSocketHandlers() {
       gameState.boss.maxHealth = data.maxHealth;
       
       // Always update UI with server values for consistency
-      window.gameUI.updateBossHealth(data.health, data.maxHealth);
+      window.gameUI.updateBossHealth(
+        data.health, 
+        data.maxHealth,
+        gameState.boss.level // Pass the stored level
+      );
 
       // Add hit effect
       if (gameState.boss.mesh) {
@@ -573,8 +618,8 @@ function setupSocketHandlers() {
     gameState.boss = null;
     gameState.bossMesh = null;
     
-    // Update UI
-    window.gameUI.updateBossHealth(0, 100);
+    // Update UI - pass undefined for level since boss is defeated
+    window.gameUI.updateBossHealth(0, 100, undefined);
     
     // Start the client-side respawn notification timer sequence
     startBossRespawnTimer(); 
@@ -614,29 +659,44 @@ function setupSocketHandlers() {
   });
 
   socket.on('bossRespawned', (data) => {
-    console.log('Boss respawned from server event');
+    console.log('Boss respawned:', data);
     
-    // Clear any existing respawn timer
-    if (gameState.bossRespawnTimer) {
-      clearTimeout(gameState.bossRespawnTimer);
-      gameState.bossRespawnTimer = null;
-    }
-    
-    // Clear notifications
-    window.gameUI.hideRespawnNotification();
-    
-    // Create boss if it doesn't exist
-    if (!gameState.boss || !gameState.boss.takeDamage) {
+    // If we already have a local boss instance, just update its properties
+    if (gameState.boss && gameState.boss.takeDamage) {
+      // Update properties from server data
+      gameState.boss.health = data.boss.health;
+      gameState.boss.maxHealth = data.boss.maxHealth;
+      gameState.boss.state = data.boss.state;
+      gameState.boss.level = data.boss.level; // Store the level
+      
+      // Update position and rotation
+      if (data.boss.position) {
+        gameState.boss.mesh.position.set(
+          data.boss.position.x,
+          data.boss.position.y,
+          data.boss.position.z
+        );
+      }
+      
+      if (data.boss.rotation) {
+        gameState.boss.mesh.rotation.set(
+          data.boss.rotation._x || 0,
+          data.boss.rotation._y || data.boss.rotation.y || 0,
+          data.boss.rotation._z || 0
+        );
+      }
+    } else {
+      // Create a new boss instance if we don't have one
       createBoss(scene, gameState);
-    }
-    
-    // Update with server data if provided
-    if (data && data.boss) {
+      
+      // Update the new instance with server data
       if (gameState.boss) {
         gameState.boss.health = data.boss.health;
         gameState.boss.maxHealth = data.boss.maxHealth;
+        gameState.boss.state = data.boss.state;
+        gameState.boss.level = data.boss.level; // Store the level
         
-        // Update position if provided
+        // Set initial position
         if (data.boss.position) {
           gameState.boss.mesh.position.set(
             data.boss.position.x,
@@ -645,13 +705,26 @@ function setupSocketHandlers() {
           );
         }
         
-        // Update UI
-        window.gameUI.updateBossHealth(data.boss.health, data.boss.maxHealth);
+        // Set initial rotation
+        if (data.boss.rotation) {
+          gameState.boss.mesh.rotation.set(
+            data.boss.rotation._x || 0,
+            data.boss.rotation._y || data.boss.rotation.y || 0,
+            data.boss.rotation._z || 0
+          );
+        }
       }
     }
+
+    // Update UI with boss health and level
+    window.gameUI.updateBossHealth(
+      data.boss.health, 
+      data.boss.maxHealth,
+      data.boss.level
+    );
     
-    // Reset respawn state
-    gameState.bossRespawning = false;
+    // Hide the respawn notification now that the boss is back
+    window.gameUI.hideRespawnNotification();
   });
 
   // Handle Easter Egg state from server on initial connection
@@ -1255,7 +1328,8 @@ function checkAndResolveBossCollision(bossBox, vehicle) {
         // Calculate damage based on boss's damage stat
         const damage = gameState.boss ? (gameState.boss.damage || 10) : 10;
         const isEnraged = gameState.boss && gameState.boss.state === 'enraged';
-        const finalDamage = damage * (isEnraged ? 1.5 : 1.0);
+        // Increased damage multiplier from 1.0 to 2.0 for normal state, and from 1.5 to 3.0 for enraged state
+        const finalDamage = damage * (isEnraged ? 3.0 : 2.0);
         
         vehicle.takeDamage(finalDamage);
         
@@ -1295,8 +1369,9 @@ function createBoss(scene, gameState) {
   
   console.log('Boss created and attached to gameState:', boss);
   
-  // Update UI
-  window.gameUI.updateBossHealth(boss.health, boss.maxHealth);
+  // Update UI with boss health and level (default to level 1 if not specified)
+  const level = boss.level || 1;
+  window.gameUI.updateBossHealth(boss.health, boss.maxHealth, level);
 }
 
 // First, add a function to handle boss respawning logic

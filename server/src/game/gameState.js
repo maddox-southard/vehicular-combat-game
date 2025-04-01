@@ -96,20 +96,23 @@ function createGameState() {
      * @param {SocketIO.Server} io Socket.IO server
      */
     spawnBoss(io) {
-      // Calculate difficulty based on player count and kill streak
+      // Calculate difficulty based on player count
       const difficulty = this.calculateBossDifficulty();
+      const playerCount = this.players.size;
 
       // Create boss data
       this.boss = {
         id: 'boss',
         type: 'SemiTrump',
         difficulty,
-        health: 100 * difficulty,
-        maxHealth: 100 * difficulty,
+        level: playerCount, // Store the level (number of players)
+        health: 1000 * playerCount, // Health is 1000 times the number of players
+        maxHealth: 1000 * playerCount, // Max health is also 1000 times the number of players
         position: this.getBossSpawnPosition(),
         rotation: { y: Math.PI }, // Facing south
         lastAttackTime: 0,
-        attackCooldown: 3000 / difficulty,
+        attackCooldown: 2000 / difficulty, // Reduced from 3000 to 2000 for faster attacks
+        damage: 15 * difficulty, // Increased base damage from 10 to 15
         state: 'spawning',
         stateTimer: 0,
         stateTimeout: 3000, // 3 seconds for spawning state
@@ -124,7 +127,7 @@ function createGameState() {
       // Reset last defeat time
       this.lastBossDefeatTime = 0;
 
-      console.log(`Boss spawned with difficulty: ${difficulty.toFixed(1)}`);
+      console.log(`Boss spawned with level: ${playerCount}, health: ${1000 * playerCount}`);
     },
 
     /**
@@ -254,7 +257,10 @@ function createGameState() {
      * @returns {number} Difficulty value
      */
     calculateBossDifficulty() {
-      return 1 + (0.2 * Math.min(this.players.size - 1, 3)) + (0.2 * this.bossKillStreak);
+      // Boss level is equal to the number of players in the game
+      const playerCount = this.players.size;
+      // Return the player count as the difficulty level
+      return playerCount;
     },
 
     /**

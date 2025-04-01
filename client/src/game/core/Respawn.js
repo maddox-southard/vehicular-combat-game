@@ -20,6 +20,8 @@ export function initializeRespawn(gameState) {
     countdown: 0,
     completed: false
   };
+  
+  console.log('Respawn system initialized with death count reset to 0');
 }
 
 /**
@@ -29,11 +31,24 @@ export function initializeRespawn(gameState) {
 export function startRespawn(gameState) {
   if (!gameState.localPlayer) return;
 
-  // Simply increment by 1, no need to check type since we initialize it properly
-  gameState.deathCount = (gameState.deathCount || 0) + 1;
+  // Make sure deathCount is initialized before incrementing
+  if (typeof gameState.deathCount !== 'number') {
+    gameState.deathCount = 0;
+  }
+  // Increment death count
+  gameState.deathCount += 1;
+  
+  console.log(`Death count incremented to: ${gameState.deathCount}`);
 
   // Calculate respawn delay based on current death count
-  const respawnDelay = BASE_RESPAWN_DELAY;  // Remove the multiplier to keep consistent delay
+  // First death: BASE_RESPAWN_DELAY (5 seconds)
+  // Second death: BASE_RESPAWN_DELAY + ADDITIONAL_DELAY_PER_DEATH (10 seconds)
+  // Third death: BASE_RESPAWN_DELAY + 2 * ADDITIONAL_DELAY_PER_DEATH (15 seconds)
+  // And so on...
+  const additionalDelay = ADDITIONAL_DELAY_PER_DEATH * (gameState.deathCount - 1);
+  const respawnDelay = BASE_RESPAWN_DELAY + additionalDelay;
+  
+  console.log(`Respawn delay set to ${respawnDelay}ms (${respawnDelay/1000} seconds)`);
 
   // Set respawn state
   gameState.respawn.active = true;
@@ -56,8 +71,14 @@ export function startRespawn(gameState) {
     gameState.localPlayer.vehicle.isRespawning = true;
   }
 
+  // Make sure the respawn UI exists
+  let respawnUI = document.getElementById('respawn-ui');
+  if (!respawnUI) {
+    createRespawnUI();
+    respawnUI = document.getElementById('respawn-ui');
+  }
+
   // Show respawn UI
-  const respawnUI = document.getElementById('respawn-ui');
   if (respawnUI) {
     respawnUI.style.display = 'flex';
 
@@ -65,7 +86,22 @@ export function startRespawn(gameState) {
     const deathCountElement = document.getElementById('death-count');
     if (deathCountElement) {
       deathCountElement.textContent = gameState.deathCount;
+      console.log(`Updated death count UI to: ${gameState.deathCount}`);
+    } else {
+      console.warn('Death count element not found in UI');
     }
+    
+    // Update initial countdown display
+    const countdownElement = document.getElementById('respawn-countdown');
+    if (countdownElement) {
+      const countdownSeconds = Math.ceil(respawnDelay / 1000);
+      countdownElement.textContent = countdownSeconds;
+      console.log(`Set initial countdown UI to: ${countdownSeconds} seconds`);
+    } else {
+      console.warn('Countdown element not found in UI');
+    }
+  } else {
+    console.error('Failed to create or find respawn UI');
   }
 }
 

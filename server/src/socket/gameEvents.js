@@ -21,7 +21,7 @@ function setupGameEvents(io, gameState) {
   // Track Easter Egg pickup state
   let easterEggState = {
     active: true,
-    position: { x: 0, y: 0.5, z: 0 }, // Center of map
+    position: { x: 50, y: 50.0, z: 0 }, // Center of map, height adjusted to 1.0
     respawnTime: 30000, // 30 seconds
     respawnTimer: null
   };
@@ -349,18 +349,18 @@ function setupGameEvents(io, gameState) {
   function respawnBoss() {
     console.log('Respawning boss on server');
     
-    // Calculate difficulty based on player count and kill streak
+    // Calculate level and health based on player count
     const playerCount = gameState.players.size;
-    const killStreak = gameState.bossKillStreak || 0;
-    const difficulty = 1 + (0.2 * Math.min(playerCount - 1, 3)) + (0.2 * killStreak);
+    const difficulty = playerCount; // Difficulty/level is equal to the number of players
     
     // Create new boss data
     gameState.boss = {
-      id: 'boss', // Add an ID for consistency if needed client-side
-      type: 'SemiTrump', // Add type for consistency if needed client-side
-      health: 100 * difficulty,
-      maxHealth: 100 * difficulty,
+      id: 'boss', 
+      type: 'SemiTrump',
       difficulty: difficulty,
+      level: playerCount, // Store the level (number of players)
+      health: 1000 * playerCount, // Health is 1000 times the number of players
+      maxHealth: 1000 * playerCount, // Max health is also 1000 times the number of players
       state: 'spawning',
       stateTimer: 0, // Initialize state timer
       stateTimeout: 3000, // Set initial spawning timeout (3 seconds)
@@ -374,6 +374,8 @@ function setupGameEvents(io, gameState) {
       },
       // Initialize other necessary properties if updateBoss expects them
       lastAttackTime: 0,
+      attackCooldown: 2000 / difficulty, // Reduced from 3000 to 2000 for faster attacks
+      damage: 15 * difficulty, // Increased base damage from 10 to 15
       target: null,
       perimeterWaypoints: null, // Ensure waypoints are reset
       currentWaypointIndex: 0
@@ -390,7 +392,7 @@ function setupGameEvents(io, gameState) {
       boss: gameState.boss // Send the full new boss object
     });
     
-    console.log(`Boss respawned with difficulty ${difficulty}`);
+    console.log(`Boss respawned with level: ${playerCount}, health: ${1000 * playerCount}`);
   }
 
   // Set up pickup respawn timer

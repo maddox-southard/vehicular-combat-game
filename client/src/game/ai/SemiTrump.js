@@ -43,7 +43,7 @@ export class SemiTrump {
     this.currentWeapon = 'ram'; // ram, freezeMissile, flamethrower, napalmRain
     this.weaponCooldowns = {
       ram: 2000,
-      freezeMissile: 5000,
+      freezeMissile: 2500, // Reduced from 5000 to 2500 for more frequent missile firing
       flamethrower: 3000,
       napalmRain: 5000  // Reduced from 8000 to 5000 for more frequent use
     };
@@ -803,7 +803,8 @@ export class SemiTrump {
     
     if (!vehicle.lastBossCollisionDamage || now - vehicle.lastBossCollisionDamage > cooldown) {
       // Calculate damage based on boss's damage stat
-      const damage = this.damage * (this.currentState === 'enraged' ? 1.5 : 1.0);
+      // Increased base damage multiplier from 1.0 to 2.0 for normal state, and from 1.5 to 3.0 for enraged state
+      const damage = this.damage * (this.currentState === 'enraged' ? 3.0 : 2.0);
       vehicle.takeDamage(damage);
       
       // Update collision damage timestamp

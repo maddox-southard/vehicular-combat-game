@@ -283,6 +283,12 @@ export class Vehicle {
    * @returns {boolean} True if the vehicle was destroyed
    */
   takeDamage(amount) {
+    // Skip if already destroyed
+    if (this.health <= 0) {
+      console.log(`Vehicle ${this.type} already destroyed, ignoring damage`);
+      return true;
+    }
+
     // Apply armor damage reduction
     const damageReduction = this.armor * 0.15;
     const actualDamage = amount * (1 - damageReduction);
@@ -758,11 +764,7 @@ export class Vehicle {
       this.fireSpecialAttack();
 
       // Decrease ammo handled in fireSpecialAttack method
-
-      // Force immediate UI update
-      if (window.gameUI) {
-        window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
-      }
+      // updateAmmoUI is also called in fireSpecialAttack
     }
   }
 
@@ -965,5 +967,21 @@ export class Vehicle {
     if (this.healthBar) {
       this.healthBar.matrixAutoUpdate = true;
     }
+  }
+
+  updateAmmoUI() {
+    // Update weapon UI if gameUI exists
+    if (window.gameUI) {
+      window.gameUI.updateWeaponSystem(this.weapons, this._currentWeapon, this.weaponAmmo);
+    }
+  }
+
+  /**
+   * Play sound when trying to fire without ammo
+   */
+  playEmptySound() {
+    console.log('No ammo available - would play empty sound');
+    // If sound system exists, it would be called here
+    // TODO: Add actual sound effect when sound system is available
   }
 } 

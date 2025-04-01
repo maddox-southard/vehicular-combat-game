@@ -157,14 +157,20 @@ export class GameUI {
         document.body.appendChild(container);
     }
 
-    updateBossHealth(health, maxHealth) {
+    updateBossHealth(health, maxHealth, level) {
         const container = document.getElementById('boss-health-container');
         const healthFill = document.getElementById('boss-health-fill');
+        const bossName = document.getElementById('boss-name');
 
         if (health > 0) {
             container.style.display = 'block';
             const percentage = (health / maxHealth) * 100;
             healthFill.style.width = `${percentage}%`;
+            
+            // Update boss name to include level if provided
+            if (level !== undefined) {
+                bossName.textContent = `SEMI-"TRUMP": Level ${level}`;
+            }
             
             // Update color based on health percentage
             if (percentage > 60) {

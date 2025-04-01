@@ -23,7 +23,7 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
   vehiclesContainer.innerHTML = '';
   
   // Get all vehicle entries and sort them
-  const vehicleEntries = Object.entries(VEHICLES);
+  const vehicleEntries = Object.entries(VEHICLES).filter(([vehicleId]) => vehicleId !== 'sweetTooth');
   let currentIndex = 0;
   
   // Variable to store player name across vehicle changes
