@@ -56,16 +56,20 @@ export class Portal {
 
     // Create label if provided
     if (this.label) {
+      // Increase canvas size for longer text
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
-      canvas.width = 256;
+      canvas.width = 512; // Increased from 256
       canvas.height = 64;
 
+      // Adjust font size based on text length
+      const fontSize = this.label.length > 15 ? 20 : 24;
+      
       // Draw text on canvas
       context.fillStyle = '#ffffff';
-      context.font = 'Bold 24px Arial';
+      context.font = `Bold ${fontSize}px Arial`;
       context.textAlign = 'center';
-      context.fillText(this.label, 128, 40);
+      context.fillText(this.label, canvas.width / 2, 40);
 
       // Create texture from canvas
       const texture = new THREE.CanvasTexture(canvas);
@@ -75,8 +79,8 @@ export class Portal {
         side: THREE.DoubleSide
       });
 
-      // Create label mesh
-      const labelGeometry = new THREE.PlaneGeometry(8, 2);
+      // Create label mesh with increased width
+      const labelGeometry = new THREE.PlaneGeometry(12, 2); // Increased width from 8 to 12
       const labelMesh = new THREE.Mesh(labelGeometry, labelMaterial);
       labelMesh.position.set(0, 5, 0); // Position above portal
       labelMesh.rotation.x = 0; // Face the player
@@ -137,6 +141,15 @@ export class Portal {
     } else {
       // Entry portal effect, maybe play sound or animation
       console.log('Player entered through entry portal');
+      
+      // Mark that player came through portal
+      if (player.isLocal) {
+        // For local player, store in sessionStorage to persist through page refresh
+        sessionStorage.setItem('fromPortal', 'true');
+      } else {
+        // For networked players, set property directly
+        player.fromPortal = true;
+      }
 
       // Set a cooldown to prevent immediate re-entry
       this.activationCooldown = 5; // 5 seconds
@@ -154,6 +167,31 @@ export class Portal {
 }
 
 /**
+ * Get a user-friendly display name from a URL
+ * @param {string} url The URL to process
+ * @returns {string} A user-friendly display name
+ */
+function getFriendlyDomainName(url) {
+  try {
+    const parsedUrl = new URL(url);
+    let hostname = parsedUrl.hostname;
+    
+    // Remove www. prefix if present
+    hostname = hostname.replace(/^www\./, '');
+    
+    // If hostname is still too long, truncate it
+    if (hostname.length > 25) {
+      hostname = hostname.substring(0, 22) + '...';
+    }
+    
+    return hostname;
+  } catch (e) {
+    console.error('Error parsing URL for friendly name:', e);
+    return 'Return Portal';
+  }
+}
+
+/**
  * Set up portals in the game world
  * @param {THREE.Scene} scene The scene to add portals to
  * @returns {Object} Portal system
@@ -161,7 +199,6 @@ export class Portal {
 export function setupPortals(scene) {
   const portals = [];
 
-  // Move exit portal in front of Washington Monument (south side of map)
   // Get map dimensions
   const mapDimensions = window.gameState?.map?.getDimensions() || { width: 320, length: 480 };
 
@@ -177,30 +214,56 @@ export function setupPortals(scene) {
 
   // Check for entry portal parameters
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('portal') === 'true') {
-    // Player is coming from a portal
-    const ref = urlParams.get('ref') || '';
-
-    // Create entry portal - spawn point with return capability
-    const entryPortal = new Portal(
-      'entry',
-      new THREE.Vector3(0, 0, -mapDimensions.length / 3), // North side of map
-      ref, // Set ref as target URL to go back
-      ref ? 'Return Portal' : '' // Add label if we have a return destination
-    );
-    scene.add(entryPortal.mesh);
-    portals.push(entryPortal);
-
-    // Entry portal should stay permanently if it has a return destination
-    if (!ref) {
-      // Make entry portal disappear after some time only if it has no return destination
-      setTimeout(() => {
-        scene.remove(entryPortal.mesh);
-        const index = portals.indexOf(entryPortal);
-        if (index !== -1) {
-          portals.splice(index, 1);
-        }
-      }, 30000); // 30 seconds
+  const isFromPortal = urlParams.get('portal') === 'true';
+  const refUrl = urlParams.get('ref') || window.gameState?.portalReferer || '';
+  
+  // Create a return portal if player came from another game
+  if (isFromPortal && refUrl) {
+    // Create return portal where player spawns
+    const entryPosition = new THREE.Vector3(0, 0, -mapDimensions.length / 4);
+    
+    try {
+      // Ensure the refUrl has a protocol (http:// or https://)
+      let formattedRefUrl = refUrl;
+      if (!formattedRefUrl.startsWith('http://') && !formattedRefUrl.startsWith('https://')) {
+        formattedRefUrl = 'https://' + formattedRefUrl;
+      }
+      
+      // Get a user-friendly domain name
+      const friendlyDomain = getFriendlyDomainName(formattedRefUrl);
+      const returnPortalLabel = `Return to ${friendlyDomain}`;
+      
+      // Create entry portal with return capability
+      const returnPortal = new Portal(
+        'entry',
+        entryPosition,
+        formattedRefUrl, // Use the formatted URL
+        returnPortalLabel
+      );
+      
+      scene.add(returnPortal.mesh);
+      portals.push(returnPortal);
+      
+      console.log(`Created return portal to ${formattedRefUrl}`);
+    } catch (e) {
+      console.error('Failed to create return portal:', e);
+      
+      // Fallback to simpler portal creation without URL parsing
+      // Ensure the refUrl has a protocol
+      let formattedRefUrl = refUrl;
+      if (!formattedRefUrl.startsWith('http://') && !formattedRefUrl.startsWith('https://')) {
+        formattedRefUrl = 'https://' + formattedRefUrl;
+      }
+      
+      const returnPortal = new Portal(
+        'entry',
+        entryPosition,
+        formattedRefUrl, // Use the formatted URL
+        'Return Portal'
+      );
+      
+      scene.add(returnPortal.mesh);
+      portals.push(returnPortal);
     }
   }
 

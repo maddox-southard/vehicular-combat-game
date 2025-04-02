@@ -141,8 +141,8 @@ function completeRespawn(gameState, scene) {
   gameState.localPlayer.vehicle.health = gameState.localPlayer.vehicle.maxHealth;
   gameState.localPlayer.vehicle.damageLevel = 0;
 
-  // Reset position to spawn point
-  const spawnPoint = gameState.map.getPlayerSpawnPoint();
+  // Reset position to spawn point - respawns are always at Capitol Building (not through portal)
+  const spawnPoint = gameState.map.getPlayerSpawnPoint(false);
   gameState.localPlayer.vehicle.mesh.position.copy(spawnPoint.position);
   gameState.localPlayer.vehicle.mesh.rotation.y = spawnPoint.rotation;
 

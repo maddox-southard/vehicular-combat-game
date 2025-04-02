@@ -6,8 +6,8 @@ export class Projectile {
     constructor(type, position, direction, owner) {
         this.type = type;
         this.owner = owner;
-        this.speed = type === 'specialAttack' ? 1.5 : 2;
-        this.damage = type === 'specialAttack' ? 15 : 5;
+        this.speed = type === 'specialAttack' ? 1 : 2;
+        this.damage = type === 'specialAttack' ? 50 : 5;
         this.target = null;
         this.lifeTime = type === 'specialAttack' ? 4500 : 3000; // Increased from 3000 to 4500 for special attacks (50% increase)
         this.spawnTime = Date.now();
@@ -456,45 +456,121 @@ export class Projectile {
     }
     
     createSweetToothProjectile() {
-        // Fire missile / Flaming ice cream cone
-        const group = new THREE.Group();
+        // Create a clown head projectile based on Sweet Tooth's vehicle design
+        const headGroup = new THREE.Group();
         
-        // Cone
-        const coneGeometry = new THREE.ConeGeometry(0.3, 0.8, 8);
-        const coneMaterial = new THREE.MeshPhongMaterial({
-            color: 0xd2691e, // Brown
-            emissive: 0x8b4513,
-            emissiveIntensity: 0.3
+        // Base head shape - dark blue/purple, slightly elongated vertically
+        const headGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+        headGeometry.scale(1, 1.2, 1); // Elongate the head slightly
+        const headMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2a7d });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        headGroup.add(head);
+        
+        // Add white face area - covers the front half of the face
+        const faceMaskGeometry = new THREE.SphereGeometry(0.41, 16, 16, 
+            Math.PI * 1.75, Math.PI * 0.5, Math.PI * 0.3, Math.PI * 0.4);
+        const faceMaskMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const faceMask = new THREE.Mesh(faceMaskGeometry, faceMaskMaterial);
+        faceMask.rotation.y = Math.PI; // Rotate to face forward
+        headGroup.add(faceMask);
+        
+        // Red eyes - larger and menacing
+        const eyeGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+        const eyeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xff0000,
+            emissive: 0xff0000,
+            emissiveIntensity: 0.8
         });
-        const cone = new THREE.Mesh(coneGeometry, coneMaterial);
-        cone.rotation.x = Math.PI;
-        cone.position.y = -0.4;
         
-        // Ice cream scoop
-        const scoopGeometry = new THREE.SphereGeometry(0.4, 16, 16);
-        const scoopMaterial = new THREE.MeshPhongMaterial({
-            color: 0xff0000, // Red
-            emissive: 0xff4500,
-            emissiveIntensity: 0.7
+        // Left eye
+        const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        leftEye.position.set(-0.15, 0.08, -0.32);
+        headGroup.add(leftEye);
+        
+        // Right eye
+        const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        rightEye.position.set(0.15, 0.08, -0.32);
+        headGroup.add(rightEye);
+        
+        // Create menacing grin
+        const mouthGeometry = new THREE.BoxGeometry(0.25, 0.1, 0.15);
+        const mouthMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xff0000
         });
-        const scoop = new THREE.Mesh(scoopGeometry, scoopMaterial);
+        const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+        mouth.position.set(0, -0.15, -0.33);
+        headGroup.add(mouth);
         
-        // Flames
-        const flameGeometry = new THREE.SphereGeometry(0.5, 8, 8);
-        const flameMaterial = new THREE.MeshPhongMaterial({
-            color: 0xff7700, // Orange
-            emissive: 0xff7700,
+        // Add teeth
+        const teethGeometry = new THREE.BoxGeometry(0.22, 0.05, 0.16);
+        const teethMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const teeth = new THREE.Mesh(teethGeometry, teethMaterial);
+        teeth.position.set(0, -0.14, -0.33);
+        headGroup.add(teeth);
+        
+        // Add individual bottom teeth - pointier
+        const bottomToothGeometry = new THREE.ConeGeometry(0.02, 0.05, 4);
+        // Position teeth across the mouth
+        for (let i = -0.08; i <= 0.08; i += 0.04) {
+            const tooth = new THREE.Mesh(bottomToothGeometry, teethMaterial);
+            tooth.position.set(i, -0.19, -0.33);
+            tooth.rotation.x = Math.PI; // Point downward
+            headGroup.add(tooth);
+        }
+        
+        // Add smaller flames for the projectile
+        const flameColors = [
+            0xffcc00, // Core yellow
+            0xff9500, // Middle orange
+            0xff5500  // Outer orange-red
+        ];
+        
+        // Main outer flame
+        const mainFlameGeometry = new THREE.ConeGeometry(0.5, 1.1, 16);
+        const mainFlameMaterial = new THREE.MeshStandardMaterial({
+            color: flameColors[2],
+            emissive: flameColors[2],
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const mainFlame = new THREE.Mesh(mainFlameGeometry, mainFlameMaterial);
+        mainFlame.position.set(0, 0.5, 0);
+        mainFlame.rotation.x = Math.PI;
+        headGroup.add(mainFlame);
+        
+        // Middle flame layer
+        const middleFlameGeometry = new THREE.ConeGeometry(0.4, 1.2, 12);
+        const middleFlameMaterial = new THREE.MeshStandardMaterial({
+            color: flameColors[1],
+            emissive: flameColors[1],
             emissiveIntensity: 0.7,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const middleFlame = new THREE.Mesh(middleFlameGeometry, middleFlameMaterial);
+        middleFlame.position.set(0, 0.55, 0);
+        middleFlame.rotation.x = Math.PI;
+        headGroup.add(middleFlame);
+        
+        // Inner brightest flame
+        const innerFlameGeometry = new THREE.ConeGeometry(0.3, 1.4, 8);
+        const innerFlameMaterial = new THREE.MeshStandardMaterial({
+            color: flameColors[0],
+            emissive: flameColors[0],
+            emissiveIntensity: 0.9,
             transparent: true,
             opacity: 0.8
         });
         
-        const flame = new THREE.Mesh(flameGeometry, flameMaterial);
-        flame.scale.set(0.8, 1.2, 0.8);
-        flame.position.y = 0.2;
+        const innerFlame = new THREE.Mesh(innerFlameGeometry, innerFlameMaterial);
+        innerFlame.position.set(0, 0.6, 0);
+        innerFlame.rotation.x = Math.PI;
+        headGroup.add(innerFlame);
         
-        group.add(cone, scoop, flame);
-        return group;
+        return headGroup;
     }
 
     createDefaultSpecialAttack() {

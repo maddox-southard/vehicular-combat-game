@@ -15,6 +15,7 @@ import { EasterEggPickup } from './game/pickups/EasterEggPickup';
 import { GameUI } from './game/ui/GameUI';
 import { createBossMesh, createBossInstance } from './game/boss/BossMeshFactory';
 import { Projectile } from './game/weapons/Projectile';
+import { setupControls } from './game/core/Controls';
 
 // Initialize core components
 let renderer, scene, camera, aerialCamera;
@@ -273,11 +274,11 @@ function initializeGameWithPortal(scene, vehicleType, playerName, socket, gameSt
     if (portalParams.speed_x !== undefined || 
         portalParams.speed_y !== undefined || 
         portalParams.speed_z !== undefined) {
-      localPlayer.vehicle.velocity = {
-        x: parseFloat(portalParams.speed_x || 0),
-        y: parseFloat(portalParams.speed_y || 0),
-        z: parseFloat(portalParams.speed_z || 0)
-      };
+      localPlayer.vehicle.velocity = new THREE.Vector3(
+        parseFloat(portalParams.speed_x || 0),
+        parseFloat(portalParams.speed_y || 0),
+        parseFloat(portalParams.speed_z || 0)
+      );
     }
     
     // Apply rotation if provided
@@ -297,10 +298,17 @@ function initializeGameWithPortal(scene, vehicleType, playerName, socket, gameSt
     if (portalParams.team) {
       localPlayer.team = portalParams.team;
     }
+    
+    // Store the ref parameter (URL of the game player came from)
+    if (portalParams.ref) {
+      localPlayer.ref = portalParams.ref;
+      // Also store globally for portal system
+      gameState.portalReferer = portalParams.ref;
+    }
   }
 
   // Position at entry portal instead of spawn point
-  const entryPortalPosition = new THREE.Vector3(0, 0, -gameState.map.getDimensions().length/3);
+  const entryPortalPosition = new THREE.Vector3(0, 0, -gameState.map.getDimensions().length/4.25);
   localPlayer.vehicle.mesh.position.copy(entryPortalPosition);
   localPlayer.vehicle.mesh.rotation.y = Math.PI; // Face south
 
@@ -897,6 +905,14 @@ function animate(time) {
 
 // Game update logic
 function updateGame(delta, time) {
+  // Update player count for boss attack scaling
+  updatePlayerCount();
+  
+  // Log player count for debugging boss attack scaling
+  if (scene && scene.userData && scene.userData.playerCount) {
+    console.log(`Current player count in scene.userData: ${scene.userData.playerCount}`);
+  }
+  
   // Update local player
   if (gameState.localPlayer && gameState.localPlayer.vehicle) {
     // Update vehicle
@@ -1651,4 +1667,41 @@ function createFlyingPickup(type, position, index, total) {
 }
 
 // Initialize the game
-init(); 
+init();
+
+/**
+ * Update the game state
+ * @param {number} currentTime Current timestamp
+ */
+function updateGameState(currentTime) {
+  // Calculate delta time
+  const delta = (currentTime - gameState.lastTime) / 1000; // Convert to seconds
+  gameState.lastTime = currentTime;
+  
+  // Store player count in the scene for boss scaling
+  if (scene && gameState) {
+    // Count local player + all other players
+    const playerCount = (gameState.localPlayer ? 1 : 0) + (gameState.players ? gameState.players.size : 0);
+    scene.userData.playerCount = playerCount;
+  }
+  
+  // Update physics for each vehicle - TODO: Move to a proper physics system
+  // ... existing code ...
+}
+
+/**
+ * Update the player count in scene userData for boss attack scaling
+ */
+function updatePlayerCount() {
+  if (scene && gameState) {
+    // Count local player + all other players
+    const playerCount = (gameState.localPlayer ? 1 : 0) + (gameState.players ? gameState.players.size : 0);
+    scene.userData.playerCount = playerCount;
+    
+    // If this player count is different from before, log it
+    if (scene.userData.lastPlayerCount !== playerCount) {
+      console.log(`Player count updated: ${playerCount} players in game`);
+      scene.userData.lastPlayerCount = playerCount;
+    }
+  }
+} 

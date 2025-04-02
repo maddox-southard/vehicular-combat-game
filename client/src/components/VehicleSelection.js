@@ -22,13 +22,6 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
   // Clear container
   vehiclesContainer.innerHTML = '';
   
-  // Get all vehicle entries and sort them
-  const vehicleEntries = Object.entries(VEHICLES).filter(([vehicleId]) => vehicleId !== 'sweetTooth');
-  let currentIndex = 0;
-  
-  // Variable to store player name across vehicle changes
-  let playerNameValue = localStorage.getItem('playerName') || '';
-  
   // Vehicle descriptive names mapping
   const vehicleDescriptions = {
     auger: 'Rock Driller',
@@ -45,6 +38,19 @@ export function setupVehicleSelection(onVehicleSelect, portalParams = null) {
     warthog: 'War Tank',
     sweetTooth: 'Ice-Cream Truck'
   };
+  
+  // Get all vehicle entries and sort them by display name
+  const vehicleEntries = Object.entries(VEHICLES)
+    .filter(([vehicleId]) => vehicleId !== 'sweetTooth')
+    .sort(([idA, vehicleA], [idB, vehicleB]) => {
+      const nameA = vehicleDescriptions[idA] || vehicleA.name;
+      const nameB = vehicleDescriptions[idB] || vehicleB.name;
+      return nameA.localeCompare(nameB);
+    });
+  let currentIndex = 0;
+  
+  // Variable to store player name across vehicle changes
+  let playerNameValue = localStorage.getItem('playerName') || '';
   
   // Create vehicle display container first
   const vehicleDisplay = document.createElement('div');

@@ -303,6 +303,32 @@ function setupGameEvents(io, gameState) {
   });
 
   /**
+   * Create a safe copy of boss object without circular references
+   * @param {Object} boss - The boss object to sanitize
+   * @returns {Object} A sanitized copy of the boss object
+   */
+  function createSafeBossCopy(boss) {
+    if (!boss) return null;
+    
+    return {
+      id: boss.id,
+      type: boss.type,
+      difficulty: boss.difficulty,
+      level: boss.level,
+      health: boss.health,
+      maxHealth: boss.maxHealth,
+      position: { ...boss.position },
+      rotation: { ...boss.rotation },
+      state: boss.state,
+      stateTimer: boss.stateTimer,
+      stateTimeout: boss.stateTimeout,
+      lastAttackTime: boss.lastAttackTime,
+      attackCooldown: boss.attackCooldown,
+      damage: boss.damage
+    };
+  }
+
+  /**
    * Handle boss defeat on the server
    * @param {string} killerId - ID of the player who defeated the boss
    */
@@ -387,9 +413,9 @@ function setupGameEvents(io, gameState) {
       gameState.bossRespawnTimer = null;
     }
     
-    // Broadcast boss respawn to all clients
+    // Broadcast to all clients
     io.emit('bossRespawned', {
-      boss: gameState.boss // Send the full new boss object
+      boss: createSafeBossCopy(gameState.boss) // Send the sanitized boss object
     });
     
     console.log(`Boss respawned with level: ${playerCount}, health: ${1000 * playerCount}`);

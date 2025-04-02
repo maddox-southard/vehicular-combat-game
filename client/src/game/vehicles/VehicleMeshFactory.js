@@ -3112,97 +3112,102 @@ function createSweetToothMesh(group) {
   // Create the main ice cream truck body
   const truckGroup = new THREE.Group();
   
-  // Main body/cab - white with pink polka dots
-  const bodyGeometry = new THREE.BoxGeometry(4, 2, 7);
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  // Main body - boxy white truck with sharper edges
+  const bodyGeometry = new THREE.BoxGeometry(3.0, 2.5, 4.5);
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-  body.position.set(0, 1.4, 0);
+  body.position.set(0, 1.7, 0);
   truckGroup.add(body);
   
-  // Add polka dots to the main body
-  addPolkaDots(truckGroup, body, 0.4, 0xf28cb3);
+  // Front cab section (more separated from the rear box)
+  const frontGeometry = new THREE.BoxGeometry(3.0, 1.0, 1.2);
+  const front = new THREE.Mesh(frontGeometry, bodyMaterial);
+  front.position.set(0, 1.0, -2.0);
+  truckGroup.add(front);
   
-  // Create the ice cream serving area (rectangular section on top)
-  const servingAreaGeometry = new THREE.BoxGeometry(4, 1.5, 5.5);
-  const servingArea = new THREE.Mesh(servingAreaGeometry, bodyMaterial);
-  servingArea.position.set(0, 3.15, -0.5);
-  truckGroup.add(servingArea);
-  
-  // Add polka dots to the serving area
-  addPolkaDots(truckGroup, servingArea, 0.4, 0xf28cb3);
-  
-  // Create front cab windshield
-  const frontWindshieldGeometry = new THREE.BoxGeometry(3.5, 1.2, 0.1);
+  // Front window section - black
+  const frontWindowAreaGeometry = new THREE.BoxGeometry(2.8, 0.8, 0.7);
   const windowMaterial = new THREE.MeshStandardMaterial({
-    color: 0x000000,
+    color: 0x111111,
     transparent: true,
-    opacity: 0.7
+    opacity: 0.9
   });
-  const frontWindshield = new THREE.Mesh(frontWindshieldGeometry, windowMaterial);
-  frontWindshield.position.set(0, 2, -3.4);
-  truckGroup.add(frontWindshield);
+  const frontWindowArea = new THREE.Mesh(frontWindowAreaGeometry, windowMaterial);
+  frontWindowArea.position.set(0, 1.7, -2.0);
+  truckGroup.add(frontWindowArea);
   
-  // Create side windows
-  const sideWindowGeometry = new THREE.BoxGeometry(0.1, 1.2, 2);
+  // Side windows - large black rectangles
+  const sideWindowGeometry = new THREE.BoxGeometry(0.1, 0.8, 1.5);
+  
+  // Left side window
   const leftSideWindow = new THREE.Mesh(sideWindowGeometry, windowMaterial);
-  leftSideWindow.position.set(-2.05, 2, -2.4);
+  leftSideWindow.position.set(-1.55, 1.7, -1.5);
   truckGroup.add(leftSideWindow);
   
+  // Right side window
   const rightSideWindow = new THREE.Mesh(sideWindowGeometry, windowMaterial);
-  rightSideWindow.position.set(2.05, 2, -2.4);
+  rightSideWindow.position.set(1.55, 1.7, -1.5);
   truckGroup.add(rightSideWindow);
   
-  // Create serving windows (black rectangles)
-  const servingWindowGeometry = new THREE.BoxGeometry(3, 1, 0.1);
-  
-  // Left serving window
-  const leftServingWindow = new THREE.Mesh(servingWindowGeometry, windowMaterial);
-  leftServingWindow.position.set(-2.05, 3, 0);
-  leftServingWindow.rotation.y = Math.PI / 2;
-  truckGroup.add(leftServingWindow);
-  
-  // Right serving window
-  const rightServingWindow = new THREE.Mesh(servingWindowGeometry, windowMaterial);
-  rightServingWindow.position.set(2.05, 3, 0);
-  rightServingWindow.rotation.y = Math.PI / 2;
-  truckGroup.add(rightServingWindow);
-  
-  // Create front grille and bumper
-  const grillGeometry = new THREE.BoxGeometry(3.8, 0.6, 0.2);
+  // Front grille area
+  const grillGeometry = new THREE.BoxGeometry(2.6, 0.6, 0.2);
   const grillMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
   const grill = new THREE.Mesh(grillGeometry, grillMaterial);
-  grill.position.set(0, 1, -3.5);
+  grill.position.set(0, 0.6, -2.6);
   truckGroup.add(grill);
   
-  // Create headlights
-  const headlightGeometry = new THREE.SphereGeometry(0.4, 16, 16);
+  // Front bumper
+  const frontBumperGeometry = new THREE.BoxGeometry(3.0, 0.4, 0.3);
+  const bumperMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
+  const frontBumper = new THREE.Mesh(frontBumperGeometry, bumperMaterial);
+  frontBumper.position.set(0, 0.3, -2.6);
+  truckGroup.add(frontBumper);
+  
+  // Add headlights - simple squares
+  const headlightGeometry = new THREE.BoxGeometry(0.6, 0.4, 0.1);
   const headlightMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffa0,
-    emissive: 0xffffa0,
-    emissiveIntensity: 0.5
+    color: 0xffffcc,
+    emissive: 0xffffee,
+    emissiveIntensity: 0.3
   });
   
   // Left headlight
   const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-  leftHeadlight.position.set(-1.5, 1, -3.5);
-  leftHeadlight.scale.z = 0.2;
+  leftHeadlight.position.set(-1.0, 0.6, -2.65);
   truckGroup.add(leftHeadlight);
   
   // Right headlight
   const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-  rightHeadlight.position.set(1.5, 1, -3.5);
-  rightHeadlight.scale.z = 0.2;
+  rightHeadlight.position.set(1.0, 0.6, -2.65);
   truckGroup.add(rightHeadlight);
   
+  // Row of roof lights (signature of the ice cream truck)
+  const roofLightGeometry = new THREE.BoxGeometry(0.3, 0.15, 0.15);
+  const roofLightMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff3333,
+    emissive: 0xff0000,
+    emissiveIntensity: 0.4
+  });
+  
+  // Add row of lights at the front top edge
+  for (let i = -1.2; i <= 1.2; i += 0.5) {
+    const roofLight = new THREE.Mesh(roofLightGeometry, roofLightMaterial);
+    roofLight.position.set(i, 3.0, -2.0);
+    truckGroup.add(roofLight);
+  }
+  
+  // Add polka dots using circles
+  addPolkaDots(truckGroup);
+  
   // Create wheels
-  const wheelGeometry = new THREE.CylinderGeometry(0.7, 0.7, 0.5, 16);
-  const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  const wheelGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 12);
+  const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
   
   const wheelPositions = [
-    { x: -2, y: 0.7, z: -2.5 }, // Front left
-    { x: 2, y: 0.7, z: -2.5 },  // Front right
-    { x: -2, y: 0.7, z: 2 },    // Rear left
-    { x: 2, y: 0.7, z: 2 }      // Rear right
+    { x: -1.3, y: 0.6, z: -1.5 }, // Front left
+    { x: 1.3, y: 0.6, z: -1.5 },  // Front right
+    { x: -1.3, y: 0.6, z: 1.5 },  // Rear left
+    { x: 1.3, y: 0.6, z: 1.5 }    // Rear right
   ];
   
   wheelPositions.forEach(pos => {
@@ -3211,8 +3216,8 @@ function createSweetToothMesh(group) {
     wheel.rotation.z = Math.PI / 2;
     truckGroup.add(wheel);
     
-    // Add wheel hub
-    const hubGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.51, 16);
+    // Add simple hubcap
+    const hubGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.41, 8);
     const hubMaterial = new THREE.MeshStandardMaterial({ color: 0x777777 });
     const hub = new THREE.Mesh(hubGeometry, hubMaterial);
     hub.position.set(pos.x, pos.y, pos.z);
@@ -3220,243 +3225,276 @@ function createSweetToothMesh(group) {
     truckGroup.add(hub);
   });
   
-  // Create the iconic flaming clown head on top
-  const clownHead = createClownHead();
-  clownHead.position.set(0, 4.5, 0);
-  truckGroup.add(clownHead);
+  // Add "SWEET TOOTH" text on sides
+  addSweetToothText(truckGroup);
   
-  // Display text on the side of the truck
-  createTruckText(truckGroup);
+  // Create the flaming clown head
+  const clownHead = createClownHead();
+  clownHead.position.set(0, 3.6, 0);
+  truckGroup.add(clownHead);
   
   // Add the truck to the main group
   group.add(truckGroup);
 }
 
-/**
- * Creates the flaming clown head for Sweet Tooth
- * @returns {THREE.Group} The clown head group
- */
+// Function to add polka dots to the truck
+function addPolkaDots(truckGroup) {
+  const dotGeometry = new THREE.CircleGeometry(0.35, 8);
+  const dotMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xff3377,
+    side: THREE.DoubleSide
+  });
+  
+  // Positions for dots on the main body sides
+  const dotPositions = [
+    // Left side dots
+    { x: -1.51, y: 1.0, z: -1.5, rx: 0, ry: Math.PI/2, rz: 0 },
+    { x: -1.51, y: 1.0, z: 0, rx: 0, ry: Math.PI/2, rz: 0 },
+    { x: -1.51, y: 1.0, z: 1.5, rx: 0, ry: Math.PI/2, rz: 0 },
+    { x: -1.51, y: 2.0, z: -1.5, rx: 0, ry: Math.PI/2, rz: 0 },
+    { x: -1.51, y: 2.0, z: 0, rx: 0, ry: Math.PI/2, rz: 0 },
+    { x: -1.51, y: 2.0, z: 1.5, rx: 0, ry: Math.PI/2, rz: 0 },
+    
+    // Right side dots
+    { x: 1.51, y: 1.0, z: -1.5, rx: 0, ry: -Math.PI/2, rz: 0 },
+    { x: 1.51, y: 1.0, z: 0, rx: 0, ry: -Math.PI/2, rz: 0 },
+    { x: 1.51, y: 1.0, z: 1.5, rx: 0, ry: -Math.PI/2, rz: 0 },
+    { x: 1.51, y: 2.0, z: -1.5, rx: 0, ry: -Math.PI/2, rz: 0 },
+    { x: 1.51, y: 2.0, z: 0, rx: 0, ry: -Math.PI/2, rz: 0 },
+    { x: 1.51, y: 2.0, z: 1.5, rx: 0, ry: -Math.PI/2, rz: 0 },
+    
+    // Front dots
+    { x: -1.0, y: 1.5, z: -2.26, rx: 0, ry: 0, rz: 0 },
+    { x: 0, y: 1.5, z: -2.26, rx: 0, ry: 0, rz: 0 },
+    { x: 1.0, y: 1.5, z: -2.26, rx: 0, ry: 0, rz: 0 },
+    
+    // Back dots
+    { x: -1.0, y: 1.5, z: 2.26, rx: 0, ry: 0, rz: 0 },
+    { x: 0, y: 1.5, z: 2.26, rx: 0, ry: 0, rz: 0 },
+    { x: 1.0, y: 1.5, z: 2.26, rx: 0, ry: 0, rz: 0 },
+    
+    // Top dots
+    { x: -1.0, y: 3.0, z: -1.0, rx: -Math.PI/2, ry: 0, rz: 0 },
+    { x: -1.0, y: 3.0, z: 1.0, rx: -Math.PI/2, ry: 0, rz: 0 },
+    { x: 1.0, y: 3.0, z: -1.0, rx: -Math.PI/2, ry: 0, rz: 0 },
+    { x: 1.0, y: 3.0, z: 1.0, rx: -Math.PI/2, ry: 0, rz: 0 },
+    { x: 0, y: 3.0, z: 0, rx: -Math.PI/2, ry: 0, rz: 0 }
+  ];
+  
+  // Create dots at each position
+  dotPositions.forEach(pos => {
+    const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+    dot.position.set(pos.x, pos.y, pos.z);
+    dot.rotation.set(pos.rx, pos.ry, pos.rz);
+    truckGroup.add(dot);
+  });
+}
+
+// Function to add Sweet Tooth text
+function addSweetToothText(truckGroup) {
+  // Black backing rectangle for text
+  const textBackingGeometry = new THREE.BoxGeometry(0.05, 0.7, 2.2);
+  const textBackingMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  
+  // Left side text panel
+  const leftTextBacking = new THREE.Mesh(textBackingGeometry, textBackingMaterial);
+  leftTextBacking.position.set(-1.51, 1.5, 0);
+  truckGroup.add(leftTextBacking);
+  
+  // Right side text panel
+  const rightTextBacking = new THREE.Mesh(textBackingGeometry, textBackingMaterial);
+  rightTextBacking.position.set(1.51, 1.5, 0);
+  truckGroup.add(rightTextBacking);
+  
+  // White letters (simplified as blocks)
+  const letterMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  
+  // Add letters on left side
+  for (let i = 0; i < 10; i++) {
+    const letterGeometry = new THREE.BoxGeometry(0.06, 0.12, 0.15);
+    const letter = new THREE.Mesh(letterGeometry, letterMaterial);
+    letter.position.set(-1.52, 1.5, -1.0 + i * 0.22);
+    truckGroup.add(letter);
+  }
+  
+  // Add letters on right side
+  for (let i = 0; i < 10; i++) {
+    const letterGeometry = new THREE.BoxGeometry(0.06, 0.12, 0.15);
+    const letter = new THREE.Mesh(letterGeometry, letterMaterial);
+    letter.position.set(1.52, 1.5, -1.0 + i * 0.22);
+    truckGroup.add(letter);
+  }
+}
+
+// Function to create the clown head
 function createClownHead() {
   const headGroup = new THREE.Group();
   
-  // Create the main clown face - spooky with blue skin
-  const faceGeometry = new THREE.SphereGeometry(1, 16, 16);
-  const faceMaterial = new THREE.MeshStandardMaterial({ color: 0x5555aa });
-  const face = new THREE.Mesh(faceGeometry, faceMaterial);
-  headGroup.add(face);
+  // Base head shape - dark blue/purple, slightly elongated vertically
+  const headGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+  headGeometry.scale(1, 1.2, 1); // Elongate the head slightly
+  const headMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2a7d });
+  const head = new THREE.Mesh(headGeometry, headMaterial);
+  headGroup.add(head);
   
-  // Create the clown's red nose
-  const noseGeometry = new THREE.SphereGeometry(0.3, 12, 12);
-  const noseMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-  const nose = new THREE.Mesh(noseGeometry, noseMaterial);
-  nose.position.set(0, 0, 0.8);
-  headGroup.add(nose);
+  // Add white face area - covers the FRONT half of the face
+  const faceMaskGeometry = new THREE.SphereGeometry(0.81, 16, 16, 
+    Math.PI * 1.75, Math.PI * 0.5, Math.PI * 0.3, Math.PI * 0.4);
+  const faceMaskMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const faceMask = new THREE.Mesh(faceMaskGeometry, faceMaskMaterial);
+  faceMask.rotation.y = Math.PI; // Rotate to face forward
+  headGroup.add(faceMask);
   
-  // Create the clown's sinister grin - white teeth with red lips
-  const mouthGeometry = new THREE.BoxGeometry(1.2, 0.4, 0.3);
-  const mouthMaterial = new THREE.MeshStandardMaterial({ color: 0xff3333 });
-  const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
-  mouth.position.set(0, -0.4, 0.7);
-  headGroup.add(mouth);
+  // Red eyes - larger and more menacing - positioned on FRONT
+  const eyeGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+  const eyeMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xff0000,
+    emissive: 0xff0000,
+    emissiveIntensity: 0.8
+  });
   
-  // Add teeth to the mouth
-  const teethGeometry = new THREE.BoxGeometry(1, 0.2, 0.2);
-  const teethMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-  const teeth = new THREE.Mesh(teethGeometry, teethMaterial);
-  teeth.position.set(0, -0.35, 0.8);
-  headGroup.add(teeth);
-  
-  // Create the clown's eyes - black and menacing
-  const eyeGeometry = new THREE.SphereGeometry(0.2, 12, 12);
-  const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
-  
-  // Left eye
+  // Left eye - positioned on front
   const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-  leftEye.position.set(-0.4, 0.3, 0.8);
+  leftEye.position.set(-0.25, 0.15, -0.65);
   headGroup.add(leftEye);
   
-  // Right eye
+  // Right eye - positioned on front
   const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-  rightEye.position.set(0.4, 0.3, 0.8);
+  rightEye.position.set(0.25, 0.15, -0.65);
   headGroup.add(rightEye);
   
-  // Create the flaming hair
-  createFlamingHair(headGroup);
+  // Create menacing grin on FRONT
+  const mouthGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.3);
+  const mouthMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xff0000
+  });
+  const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+  mouth.position.set(0, -0.3, 0.65);
+  headGroup.add(mouth);
+  
+  // Add teeth to the mouth on FRONT
+  const teethGeometry = new THREE.BoxGeometry(0.45, 0.1, 0.31);
+  const teethMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const teeth = new THREE.Mesh(teethGeometry, teethMaterial);
+  teeth.position.set(0, -0.28, 0.65);
+  headGroup.add(teeth);
+  
+  // Add individual teeth for more menacing look - on FRONT
+  const toothGeometry = new THREE.BoxGeometry(0.08, 0.12, 0.1);
+  
+  // Create bottom row of teeth - pointier
+  const bottomToothGeometry = new THREE.ConeGeometry(0.04, 0.1, 4);
+  // Position teeth across the mouth
+  for (let i = -0.15; i <= 0.15; i += 0.08) {
+    const tooth = new THREE.Mesh(bottomToothGeometry, teethMaterial);
+    tooth.position.set(i, -0.37, 0.7);
+    tooth.rotation.x = Math.PI; // Point downward
+    headGroup.add(tooth);
+  }
+  
+  // Add the flames
+  createFlames(headGroup);
   
   return headGroup;
 }
 
-/**
- * Creates the flaming hair for the clown head
- * @param {THREE.Group} headGroup The head group to add the hair to
- */
-function createFlamingHair(headGroup) {
-  // Create the base of the hair with overlapping flame shapes
+// Function to create the flames for the clown head
+function createFlames(headGroup) {
+  // Main flame color is yellow-orange
   const flameColors = [
-    0xff3300, // Orange-red
-    0xff6600, // Orange
-    0xffcc00  // Yellow
+    0xffcc00, // Core yellow
+    0xff9500, // Middle orange
+    0xff5500  // Outer orange-red
   ];
   
-  // Create several flame shapes at different heights and rotations
-  for (let i = 0; i < 12; i++) {
-    const flameHeight = 0.8 + Math.random() * 1.2;
-    const flameWidth = 0.3 + Math.random() * 0.4;
-    
-    const flameGeometry = new THREE.ConeGeometry(flameWidth, flameHeight, 8);
-    const flameMaterial = new THREE.MeshStandardMaterial({
-      color: flameColors[Math.floor(Math.random() * flameColors.length)],
-      emissive: 0xff6600,
-      emissiveIntensity: 0.5
-    });
-    
-    const flame = new THREE.Mesh(flameGeometry, flameMaterial);
-    
-    // Position flames around the head
-    const angle = (i / 12) * Math.PI * 2;
-    const radius = 0.7;
-    flame.position.set(
-      Math.cos(angle) * radius,
-      0.5 + Math.random() * 0.8,
-      Math.sin(angle) * radius
-    );
-    
-    // Rotate flames to point outward and upward
-    flame.rotation.x = Math.PI / 2 + (Math.random() * 0.4 - 0.2);
-    flame.rotation.y = angle + (Math.random() * 0.5 - 0.25);
-    flame.rotation.z = Math.random() * Math.PI * 2;
-    
-    headGroup.add(flame);
-  }
+  // Create main large flame envelope
+  const mainFlameGeometry = new THREE.ConeGeometry(1.0, 2.2, 20);
+  const mainFlameMaterial = new THREE.MeshStandardMaterial({
+    color: flameColors[2],
+    emissive: flameColors[2],
+    emissiveIntensity: 0.5,
+    transparent: true,
+    opacity: 0.9
+  });
   
-  // Add more flames on top
-  for (let i = 0; i < 8; i++) {
-    const flameHeight = 1.0 + Math.random() * 1.5;
-    const flameWidth = 0.3 + Math.random() * 0.4;
-    
-    const flameGeometry = new THREE.ConeGeometry(flameWidth, flameHeight, 8);
-    const flameMaterial = new THREE.MeshStandardMaterial({
-      color: flameColors[Math.floor(Math.random() * flameColors.length)],
-      emissive: 0xff6600,
-      emissiveIntensity: 0.5
-    });
-    
-    const flame = new THREE.Mesh(flameGeometry, flameMaterial);
-    
-    // Position flames at the top of the head
-    const angle = (i / 8) * Math.PI * 2;
-    const radius = 0.3;
-    flame.position.set(
-      Math.cos(angle) * radius,
-      1.0 + Math.random() * 0.5,
-      Math.sin(angle) * radius
-    );
-    
-    // Make flames point upward
-    flame.rotation.x = Math.PI;
-    
-    headGroup.add(flame);
-  }
-}
-
-/**
- * Adds polka dots to a given mesh
- * @param {THREE.Group} group The group to add the polka dots to
- * @param {THREE.Mesh} mesh The mesh to use as a reference for positioning
- * @param {number} dotSize The size of the dots
- * @param {number} dotColor The color of the dots
- */
-function addPolkaDots(group, mesh, dotSize, dotColor) {
-  const dotGeometry = new THREE.SphereGeometry(dotSize, 12, 12);
-  const dotMaterial = new THREE.MeshStandardMaterial({ color: dotColor });
+  const mainFlame = new THREE.Mesh(mainFlameGeometry, mainFlameMaterial);
+  mainFlame.position.set(0, 1.0, 0);
+  mainFlame.rotation.x = Math.PI;
+  headGroup.add(mainFlame);
   
-  // Get mesh dimensions
-  const box = new THREE.Box3().setFromObject(mesh);
-  const size = box.getSize(new THREE.Vector3());
+  // Middle flame layer
+  const middleFlameGeometry = new THREE.ConeGeometry(0.8, 2.5, 16);
+  const middleFlameMaterial = new THREE.MeshStandardMaterial({
+    color: flameColors[1],
+    emissive: flameColors[1],
+    emissiveIntensity: 0.7,
+    transparent: true,
+    opacity: 0.9
+  });
   
-  // Define spacing variables
-  const spacingX = 1.5;
-  const spacingY = 1.5;
-  const spacingZ = 1.5;
+  const middleFlame = new THREE.Mesh(middleFlameGeometry, middleFlameMaterial);
+  middleFlame.position.set(0, 1.1, 0);
+  middleFlame.rotation.x = Math.PI;
+  headGroup.add(middleFlame);
   
-  // Create a pattern of dots on each side of the mesh
-  const addDotsToSide = (xAxis, yAxis, zAxis, xOffset, yOffset, zOffset, spacingX, spacingY) => {
-    for (let x = -size.x / 2 + spacingX; x < size.x / 2; x += spacingX * 2) {
-      for (let y = -size.y / 2 + spacingY; y < size.y / 2; y += spacingY * 2) {
-        const dot = new THREE.Mesh(dotGeometry, dotMaterial);
-        
-        const dotPos = new THREE.Vector3();
-        if (xAxis) dotPos.x = x + xOffset;
-        else dotPos.x = xOffset;
-        
-        if (yAxis) dotPos.y = y + yOffset;
-        else dotPos.y = yOffset;
-        
-        if (zAxis) dotPos.z = y + zOffset; // Use y for pattern on z-axis
-        else dotPos.z = zOffset;
-        
-        dot.position.copy(dotPos);
-        
-        // Only add the dot if it would be on the surface
-        if ((Math.abs(dot.position.x) < size.x / 2 - dotSize || !xAxis) &&
-            (Math.abs(dot.position.y) < size.y / 2 - dotSize || !yAxis) &&
-            (Math.abs(dot.position.z) < size.z / 2 - dotSize || !zAxis)) {
-          dot.scale.set(1, 1, 0.2); // Flatten the dot in the direction perpendicular to the surface
-          group.add(dot);
-        }
+  // Inner brightest flame
+  const innerFlameGeometry = new THREE.ConeGeometry(0.6, 2.8, 12);
+  const innerFlameMaterial = new THREE.MeshStandardMaterial({
+    color: flameColors[0],
+    emissive: flameColors[0],
+    emissiveIntensity: 0.9,
+    transparent: true,
+    opacity: 0.8
+  });
+  
+  const innerFlame = new THREE.Mesh(innerFlameGeometry, innerFlameMaterial);
+  innerFlame.position.set(0, 1.2, 0);
+  innerFlame.rotation.x = Math.PI;
+  headGroup.add(innerFlame);
+  
+  // Create flame wisps for more texture and randomness
+  const createFlameWisps = () => {
+    // Wisp positions around the main flame
+    const wispPositions = [
+      { x: 0.4, y: 0.9, z: 0.3, scale: 0.7, color: flameColors[1] },
+      { x: -0.4, y: 1.1, z: -0.2, scale: 0.8, color: flameColors[1] },
+      { x: 0.2, y: 1.3, z: -0.4, scale: 0.6, color: flameColors[0] },
+      { x: -0.3, y: 1.0, z: 0.3, scale: 0.7, color: flameColors[2] },
+      { x: 0, y: 1.5, z: 0, scale: 0.9, color: flameColors[0] }
+    ];
+    
+    wispPositions.forEach(pos => {
+      // Use custom flame geometry for better wisp shape
+      const points = [];
+      const height = 2.0 * pos.scale;
+      const radius = 0.5 * pos.scale;
+      
+      for (let i = 0; i < 6; i++) {
+        const t = i / 5;
+        // Create a wavy flame shape
+        const waist = 1.0 - Math.sin(t * Math.PI) * 0.3;
+        points.push(new THREE.Vector2(radius * waist * (1-t*0.8), height * t));
       }
-    }
+      
+      const wispGeometry = new THREE.LatheGeometry(points, 8);
+      const wispMaterial = new THREE.MeshStandardMaterial({
+        color: pos.color,
+        emissive: pos.color,
+        emissiveIntensity: 0.8,
+        transparent: true,
+        opacity: 0.8
+      });
+      
+      const wisp = new THREE.Mesh(wispGeometry, wispMaterial);
+      wisp.position.set(pos.x, pos.y, pos.z);
+      wisp.rotation.x = Math.PI;
+      // Add some random rotation
+      wisp.rotation.y = Math.random() * Math.PI;
+      wisp.rotation.z = Math.random() * Math.PI * 0.1;
+      
+      headGroup.add(wisp);
+    });
   };
   
-  // Add dots to the top and bottom
-  addDotsToSide(true, false, true, 0, mesh.position.y + size.y / 2 * 1.01, 0, spacingX, spacingZ);
-  
-  // Add dots to the sides
-  addDotsToSide(false, true, true, mesh.position.x + size.x / 2 * 1.01, 0, 0, spacingY, spacingZ);
-  addDotsToSide(false, true, true, mesh.position.x - size.x / 2 * 1.01, 0, 0, spacingY, spacingZ);
-  
-  // Add dots to the front and back
-  addDotsToSide(true, true, false, 0, 0, mesh.position.z + size.z / 2 * 1.01, spacingX, spacingY);
-  addDotsToSide(true, true, false, 0, 0, mesh.position.z - size.z / 2 * 1.01, spacingX, spacingY);
-}
-
-/**
- * Creates the text on the side of the Sweet Tooth truck
- * @param {THREE.Group} truckGroup The truck group to add the text to
- */
-function createTruckText(truckGroup) {
-  // This could be enhanced with a TextGeometry, but for simplicity,
-  // we'll use a basic approach with colored rectangles
-  
-  // Add "SWEET TOOTH" text to the side of the truck
-  const textBackingGeometry = new THREE.BoxGeometry(3, 0.8, 0.05);
-  const textBackingMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
-  
-  // Left side text
-  const leftTextBacking = new THREE.Mesh(textBackingGeometry, textBackingMaterial);
-  leftTextBacking.position.set(-2.03, 2, 0);
-  leftTextBacking.rotation.y = Math.PI / 2;
-  truckGroup.add(leftTextBacking);
-  
-  // Right side text
-  const rightTextBacking = new THREE.Mesh(textBackingGeometry, textBackingMaterial);
-  rightTextBacking.position.set(2.03, 2, 0);
-  rightTextBacking.rotation.y = Math.PI / 2;
-  truckGroup.add(rightTextBacking);
-  
-  // Add ice cream cone decal to the back of the truck
-  const iceCreamConeGeometry = new THREE.ConeGeometry(0.6, 1.2, 12);
-  const iceCreamConeMaterial = new THREE.MeshStandardMaterial({ color: 0xd2b48c }); // Tan color
-  const iceCreamCone = new THREE.Mesh(iceCreamConeGeometry, iceCreamConeMaterial);
-  iceCreamCone.position.set(0, 2.3, 3.51);
-  iceCreamCone.rotation.x = Math.PI;
-  truckGroup.add(iceCreamCone);
-  
-  // Add ice cream scoop on top of the cone
-  const iceCreamScoopGeometry = new THREE.SphereGeometry(0.7, 16, 16);
-  const iceCreamScoopMaterial = new THREE.MeshStandardMaterial({ color: 0xf28cb3 }); // Pink
-  const iceCreamScoop = new THREE.Mesh(iceCreamScoopGeometry, iceCreamScoopMaterial);
-  iceCreamScoop.position.set(0, 3.1, 3.51);
-  iceCreamScoop.scale.set(1, 0.8, 0.2);
-  truckGroup.add(iceCreamScoop);
+  createFlameWisps();
 }

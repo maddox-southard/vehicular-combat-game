@@ -119,9 +119,24 @@ function createGameState() {
         target: null
       };
 
+      // Create a safe copy for sending
+      const bossCopy = {
+        id: this.boss.id,
+        type: this.boss.type,
+        difficulty: this.boss.difficulty,
+        level: this.boss.level,
+        health: this.boss.health,
+        maxHealth: this.boss.maxHealth,
+        position: { ...this.boss.position },
+        rotation: { ...this.boss.rotation },
+        state: this.boss.state,
+        stateTimer: this.boss.stateTimer,
+        stateTimeout: this.boss.stateTimeout
+      };
+
       // Notify all clients
       io.emit('bossSpawned', {
-        boss: this.boss
+        boss: bossCopy
       });
 
       // Reset last defeat time
@@ -247,8 +262,8 @@ function createGameState() {
       // Broadcast boss position updates
       io.emit('bossPositionUpdated', {
         id: this.boss.id,
-        position: this.boss.position,
-        rotation: this.boss.rotation
+        position: { ...this.boss.position },
+        rotation: { ...this.boss.rotation }
       });
     },
 
@@ -448,10 +463,48 @@ function createGameState() {
      * @returns {Object} Current game state
      */
     getCurrentState() {
+      // Create a safe copy without circular references
+      const players = Array.from(this.players.values()).map(player => ({
+        id: player.id,
+        username: player.username,
+        vehicle: player.vehicle,
+        position: { ...player.position },
+        rotation: { ...player.rotation },
+        health: player.health,
+        killStreak: player.killStreak
+      }));
+
+      // Create a safe copy of the boss without circular references
+      let bossCopy = null;
+      if (this.boss) {
+        bossCopy = {
+          id: this.boss.id,
+          type: this.boss.type,
+          difficulty: this.boss.difficulty,
+          level: this.boss.level,
+          health: this.boss.health,
+          maxHealth: this.boss.maxHealth,
+          position: { ...this.boss.position },
+          rotation: { ...this.boss.rotation },
+          state: this.boss.state,
+          stateTimer: this.boss.stateTimer,
+          stateTimeout: this.boss.stateTimeout
+        };
+      }
+
+      // Create a safe copy of pickups without circular references
+      const pickups = this.pickups.map(pickup => ({
+        id: pickup.id,
+        type: pickup.type,
+        position: { ...pickup.position },
+        spawnTime: pickup.spawnTime,
+        lifetime: pickup.lifetime
+      }));
+
       return {
-        players: Array.from(this.players.values()),
-        boss: this.boss,
-        pickups: this.pickups,
+        players,
+        boss: bossCopy,
+        pickups,
         bossKillStreak: this.bossKillStreak
       };
     }

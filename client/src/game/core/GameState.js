@@ -28,8 +28,19 @@ export function initializeGameState(scene, vehicleType, playerName, socket, game
   // Set player name on the vehicle
   localPlayer.vehicle.setPlayerName(localPlayer.username);
 
-  // Position at spawn point
-  const spawnPoint = gameState.map.getPlayerSpawnPoint();
+  // Check if player is coming through a portal
+  const urlParams = new URLSearchParams(window.location.search);
+  const fromPortalParam = urlParams.get('portal') === 'true';
+  const fromPortalStorage = sessionStorage.getItem('fromPortal') === 'true';
+  const fromPortal = fromPortalParam || fromPortalStorage;
+  
+  // Clear the sessionStorage flag after use
+  if (fromPortalStorage) {
+    sessionStorage.removeItem('fromPortal');
+  }
+
+  // Position at spawn point based on entry method
+  const spawnPoint = gameState.map.getPlayerSpawnPoint(fromPortal);
   localPlayer.vehicle.mesh.position.copy(spawnPoint.position);
   localPlayer.vehicle.mesh.rotation.y = spawnPoint.rotation;
 
@@ -99,7 +110,9 @@ export function addPlayer(playerData, scene, gameState) {
       playerData.position.z
     );
   } else {
-    const spawnPoint = gameState.map.getPlayerSpawnPoint();
+    // Check if player is coming through a portal
+    const fromPortal = playerData.fromPortal || false;
+    const spawnPoint = gameState.map.getPlayerSpawnPoint(fromPortal);
     vehicle.mesh.position.copy(spawnPoint.position);
     vehicle.mesh.rotation.y = spawnPoint.rotation;
   }

@@ -40,17 +40,44 @@ export function constructPortalExitUrl(player, targetUrl) {
     targetUrl = 'http://portal.pieter.com';
   }
   
+  // Ensure the targetUrl has a protocol
+  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+    targetUrl = 'https://' + targetUrl;
+  }
+  
+  // Make sure there's no accidental path issues by parsing and reconstructing
+  try {
+    const parsedUrl = new URL(targetUrl);
+    // Only use the origin (protocol + hostname + port) for clean URLs
+    targetUrl = parsedUrl.origin;
+    // Add path if it exists and is not just '/'
+    if (parsedUrl.pathname && parsedUrl.pathname !== '/') {
+      targetUrl += parsedUrl.pathname;
+    }
+    // Add search parameters if they exist
+    if (parsedUrl.search && parsedUrl.search !== '?') {
+      targetUrl += parsedUrl.search;
+    }
+  } catch (e) {
+    console.error('Error parsing targetUrl:', e);
+    // Use a default as fallback
+    targetUrl = 'http://portal.pieter.com';
+  }
+  
   // Add query parameters
-  let url = targetUrl;
   const hasParams = targetUrl.includes('?');
   const separator = hasParams ? '&' : '?';
   
   // Required parameters
-  url += `${separator}portal=true`;
+  let url = targetUrl + `${separator}portal=true`;
   url += `&username=${encodeURIComponent(player.username || 'Player')}`;
   url += `&color=${encodeURIComponent(player.color || 'blue')}`;
   url += `&speed=${encodeURIComponent(player.vehicle.speed || 3)}`;
-  url += `&ref=${encodeURIComponent(window.location.href)}`;
+  
+  // Always include ref parameter with the current URL
+  // This allows the receiving game to create a return portal back to us
+  // Use absolute URL including origin to avoid path-based issues
+  url += `&ref=${encodeURIComponent(window.location.origin)}`;
   
   // Optional additional parameters
   if (player.vehicle) {
@@ -65,6 +92,11 @@ export function constructPortalExitUrl(player, targetUrl) {
     url += `&rotation_x=${encodeURIComponent(rotation.x || 0)}`;
     url += `&rotation_y=${encodeURIComponent(rotation.y || 0)}`;
     url += `&rotation_z=${encodeURIComponent(rotation.z || 0)}`;
+    
+    // Include vehicle type if available
+    if (player.vehicle.type) {
+      url += `&vehicle=${encodeURIComponent(player.vehicle.type)}`;
+    }
   }
   
   // Add avatar URL if available

@@ -64,16 +64,21 @@ export class SemiTrump {
 
     // Missile system
     this.activeProjectiles = [];
-    this.missileSpeed = 1.0; // Balanced missile speed
+    this.missileSpeed = 1.0;
     this.missileDamage = 15 * difficulty;
     this.missileRange = 50; // Missile detection range - matches player projectiles range
     this.missileSpawnPoint = new THREE.Vector3(0, 3, 11); // Position at the back of the trailer
+    
+    // Track players who have been targeted with missiles recently to avoid repeat targeting
+    this.recentlyTargetedPlayers = new Map();
+    this.targetCooldown = 5000; // 5 seconds before a player can be targeted again
     
     // Napalm rain system
     this.napalmDamage = 20 * difficulty;
     this.napalmRange = 80; // Longer range than missile attack
     this.napalmRadius = 15; // Area of effect for each napalm explosion
-    this.napalmCount = 5; // Number of napalm projectiles to fire at once
+    this.napalmCount = 5; // Base number of napalm projectiles to fire at once
+    this.napalmPerPlayer = 1; // Additional napalm projectiles per player
 
     // Create the mesh
     this.mesh = this.createMesh();
@@ -613,24 +618,59 @@ export class SemiTrump {
       const playersArray = players instanceof Map ? Array.from(players.values()) : players;
       
       if (playersArray.length > 0) {
-        // Find closest player in missile range
-        let closestPlayer = null;
-        let closestDistance = Infinity;
+        // Update target cooldowns and clear expired entries
+        const now = Date.now();
+        console.log(`Found ${playersArray.length} players to check for missile targeting`);
+        console.log(`Currently tracking ${this.recentlyTargetedPlayers.size} recently targeted players`);
+        
+        this.recentlyTargetedPlayers.forEach((timestamp, playerId) => {
+          const timeLeft = this.targetCooldown - (now - timestamp);
+          if (timeLeft <= 0) {
+            console.log(`Removing player ${playerId} from cooldown list - cooldown expired`);
+            this.recentlyTargetedPlayers.delete(playerId);
+          } else {
+            console.log(`Player ${playerId} still on cooldown for ${timeLeft.toFixed(0)}ms`);
+          }
+        });
+        
+        // Find all players in missile range that haven't been targeted recently
+        const playersInRange = [];
+        const playersOnCooldown = [];
+        const playersOutOfRange = [];
         
         for (const player of playersArray) {
-          if (!player.vehicle || !player.vehicle.mesh) continue;
+          if (!player.vehicle || !player.vehicle.mesh) {
+            console.log(`Skipping player ${player.id} - no vehicle or mesh`);
+            continue;
+          }
+          
+          if (this.recentlyTargetedPlayers.has(player.id)) {
+            console.log(`Skipping player ${player.id} - on target cooldown`);
+            playersOnCooldown.push(player.id);
+            continue;
+          }
           
           const distance = this.mesh.position.distanceTo(player.vehicle.mesh.position);
           
-          if (distance < this.missileRange && distance < closestDistance) {
-            closestDistance = distance;
-            closestPlayer = player;
+          if (distance < this.missileRange) {
+            console.log(`Player ${player.id} in missile range at distance ${distance.toFixed(1)}`);
+            playersInRange.push({
+              player,
+              distance
+            });
+          } else {
+            console.log(`Player ${player.id} out of missile range at distance ${distance.toFixed(1)}`);
+            playersOutOfRange.push(player.id);
           }
         }
         
-        // If we found a target in range, fire a missile if cooldown allows
-        if (closestPlayer) {
-          this.target = closestPlayer;
+        // Sort by distance (closest first)
+        playersInRange.sort((a, b) => a.distance - b.distance);
+        console.log(`Found ${playersInRange.length} players in range for missile targeting`);
+        
+        // If we found any targets in range, fire one missile at each of them
+        if (playersInRange.length > 0) {
+          this.target = playersInRange[0].player; // Set primary target to closest player
           
           // Try to use napalm rain for testing if flag is set (only for testing)
           const now = Date.now();
@@ -640,9 +680,16 @@ export class SemiTrump {
             this.lastWeaponUse.napalmRain = now;
             this.nextAttackForceNapalm = false;
           }
-          // Check if we can fire a missile - this is independent of napalm rain
+          // Check if we can fire missiles - one per player in range
           else if (now - this.lastWeaponUse.freezeMissile > this.weaponCooldowns.freezeMissile) {
-            this.fireMissile(closestPlayer);
+            console.log(`Firing missiles at ${playersInRange.length} players in range`);
+            
+            // Fire a missile at each player in range
+            for (const { player } of playersInRange) {
+              this.fireMissile(player);
+              this.recentlyTargetedPlayers.set(player.id, now);
+            }
+            
             this.lastWeaponUse.freezeMissile = now;
           }
         }
@@ -2116,15 +2163,31 @@ export class SemiTrump {
    * Napalm rain attack - fire multiple napalm projectiles toward the center of the map
    */
   useNapalmRain() {
-    console.log('🔥🔥🔥 Semi-Trump used Napalm Rain! Firing', this.napalmCount, 'projectiles');
+    // Calculate napalm count based on player count if available
+    let playerCount = 1;
     
-    // Get map dimensions from the perimeter waypoints
+    // Log all userData for debugging
+    console.log('Scene userData:', this.scene.userData);
+    
+    if (this.scene.userData && this.scene.userData.playerCount) {
+      playerCount = this.scene.userData.playerCount;
+      console.log(`Using player count from scene.userData: ${playerCount}`);
+    } else {
+      console.log('No player count found in scene.userData, using default: 1');
+    }
+    
+    // Scale napalm count with player count
+    const scaledNapalmCount = this.napalmCount + (playerCount - 1) * this.napalmPerPlayer;
+    
+    console.log('🔥🔥🔥 Semi-Trump used Napalm Rain! Firing', scaledNapalmCount, 'projectiles for', playerCount, 'players');
+    
+    // Map dimensions for targeting
     const mapWidth = 160;
     const mapHeight = 200;
-    const patrolMargin = 10;
+    const patrolMargin = 20;
     
-    // Create a wider spread of projectiles with more randomness
-    for (let i = 0; i < this.napalmCount; i++) {
+    // Fire napalm projectiles in a pattern
+    for (let i = 0; i < scaledNapalmCount; i++) {
       // Use different randomization patterns for more unpredictability
       let targetPosition;
       
@@ -2207,7 +2270,7 @@ export class SemiTrump {
       // Add slight delay between projectile launches for visual effect
       // Since we can't use setTimeout directly in a synchronous method,
       // we prepare the projectiles with staggered start times
-      if (i < this.napalmCount - 1) {
+      if (i < scaledNapalmCount - 1) {
         setTimeout(() => {
           // This is just for visual effect, not necessary for the actual gameplay
           this.createSimpleFlash(this.missileSpawnPoint.clone().applyMatrix4(this.mesh.matrixWorld));

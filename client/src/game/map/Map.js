@@ -76,6 +76,30 @@ export function createMap(scene) {
     */
   }
 
+  // Create washington monument spawn points (for portal entries)
+  const washingtonSpawnPoints = [];
+  for (let i = 0; i < spawnCount; i++) {
+    const xPos = (i / (spawnCount - 1) - 0.5) * spawnWidth; // Evenly distributed across the width
+    const zPos = mapLength / 2 - 60; // Near the Washington Monument
+    
+    washingtonSpawnPoints.push({
+      position: new THREE.Vector3(xPos, 0, zPos),
+      rotation: Math.PI // Facing north (towards the Capitol Building)
+    });
+  }
+
+  // Create capitol building spawn points (for normal spawns)
+  const capitolSpawnPoints = [];
+  for (let i = 0; i < spawnCount; i++) {
+    const xPos = (i / (spawnCount - 1) - 0.5) * spawnWidth; // Evenly distributed across the width
+    const zPos = -mapLength / 2 + 135; // Near the Capitol Building
+    
+    capitolSpawnPoints.push({
+      position: new THREE.Vector3(xPos, 0, zPos),
+      rotation: 0 // Facing south (towards the Washington Monument)
+    });
+  }
+
   // Create boss spawn point - moved further south
   bossSpawnPoints.push({
     position: new THREE.Vector3(0, 0, mapLength / 3), // Near the Washington Monument
@@ -129,9 +153,16 @@ export function createMap(scene) {
     colliders,
 
     // Get random player spawn point
-    getPlayerSpawnPoint: () => {
-      const index = Math.floor(Math.random() * playerSpawnPoints.length);
-      return playerSpawnPoints[index];
+    getPlayerSpawnPoint: (fromPortal = false) => {
+      if (fromPortal) {
+        // Spawn near Washington Monument if entering through portal
+        const index = Math.floor(Math.random() * washingtonSpawnPoints.length);
+        return washingtonSpawnPoints[index];
+      } else {
+        // Spawn near Capitol Building for normal spawns
+        const index = Math.floor(Math.random() * capitolSpawnPoints.length);
+        return capitolSpawnPoints[index];
+      }
     },
 
     // Get boss spawn point
