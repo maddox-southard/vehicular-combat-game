@@ -238,6 +238,16 @@ export class Vehicle {
     }
     if (this.controls.right) {
       this.rotationVelocity -= this.turnRate * delta;
+      
+      // Fix for health bar color issue - ensure opacity is maintained
+      if (this.healthBarFill && this.healthBarFill.material) {
+        // Store the current material color
+        const currentColor = this.healthBarFill.material.color.getHex();
+        // Re-apply the same color to prevent it from becoming muted
+        this.healthBarFill.material.color.setHex(currentColor);
+        // Ensure opacity is set correctly
+        this.healthBarFill.material.opacity = 0.9;
+      }
     }
 
     // Apply friction and gravity
@@ -901,7 +911,8 @@ export class Vehicle {
       transparent: true,
       opacity: 0.7,
       depthTest: false,
-      depthWrite: false
+      depthWrite: false,
+      side: THREE.DoubleSide // Render on both sides to avoid orientation issues
     });
     const background = new THREE.Mesh(bgGeometry, bgMaterial);
     this.healthBar.add(background);
@@ -913,7 +924,10 @@ export class Vehicle {
       transparent: true,
       opacity: 0.9,
       depthTest: false,
-      depthWrite: false
+      depthWrite: false,
+      side: THREE.DoubleSide, // Render on both sides to avoid orientation issues
+      // Disable features that might cause visual inconsistencies
+      toneMapped: false
     });
     this.healthBarFill = new THREE.Mesh(fgGeometry, fgMaterial);
     this.healthBarFill.position.z = 0.01; // Slightly in front of background
@@ -952,6 +966,9 @@ export class Vehicle {
     } else {
       this.healthBarFill.material.color.setHex(0xff0000); // Red
     }
+    
+    // Explicitly maintain opacity to prevent it from becoming muted
+    this.healthBarFill.material.opacity = 0.9;
   }
   
   /**
@@ -965,7 +982,20 @@ export class Vehicle {
     
     // Update health bar position if it exists
     if (this.healthBar) {
+      // Ensure the health bar properly faces the camera at all times
       this.healthBar.matrixAutoUpdate = true;
+      
+      // Force the health bar to maintain proper orientation during turns
+      // This prevents the visual darkening effect during right turns
+      if (window.camera) {
+        // Get camera position in world space
+        const cameraPosition = window.camera.position.clone();
+        // Make health bar face camera, keeping Y-up orientation
+        this.healthBar.lookAt(cameraPosition);
+        // Reset any rotation on X and Z axis to keep bar flat
+        this.healthBar.rotation.x = 0;
+        this.healthBar.rotation.z = 0;
+      }
     }
   }
 

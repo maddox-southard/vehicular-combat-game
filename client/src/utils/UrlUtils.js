@@ -7,23 +7,26 @@ export function checkForPortalParameters() {
   
   // Check if this is a portal entry
   if (urlParams.get('portal') === 'true') {
-    return {
+    // Use name parameter or fallback to username parameter
+    const playerName = urlParams.get('name') || urlParams.get('username') || 'Portal Player';
+    
+    // Create the portal params object
+    const portalParams = {
       portal: true,
-      username: urlParams.get('username') || 'Portal Player',
-      vehicle: urlParams.get('vehicle') || 'roadkill',
-      color: urlParams.get('color') || 'blue',
-      speed: parseFloat(urlParams.get('speed')) || 3,
+      username: playerName,
       ref: urlParams.get('ref') || '',
-      // Additional parameters
-      avatar_url: urlParams.get('avatar_url') || '',
-      team: urlParams.get('team') || '',
-      speed_x: parseFloat(urlParams.get('speed_x')) || 0,
-      speed_y: parseFloat(urlParams.get('speed_y')) || 0,
-      speed_z: parseFloat(urlParams.get('speed_z')) || 0,
-      rotation_x: parseFloat(urlParams.get('rotation_x')) || 0,
-      rotation_y: parseFloat(urlParams.get('rotation_y')) || 0,
-      rotation_z: parseFloat(urlParams.get('rotation_z')) || 0
     };
+    
+    // Add all other URL parameters to portalParams without validation
+    // This ensures we can pass them to the next portal without checking them
+    for (const [key, value] of urlParams.entries()) {
+      // Skip the ones we already added
+      if (!['portal', 'name', 'username', 'ref'].includes(key)) {
+        portalParams[key] = value;
+      }
+    }
+    
+    return portalParams;
   }
   
   return null;
@@ -64,52 +67,32 @@ export function constructPortalExitUrl(player, targetUrl) {
     targetUrl = 'http://portal.pieter.com';
   }
   
-  // Add query parameters
-  const hasParams = targetUrl.includes('?');
-  const separator = hasParams ? '&' : '?';
+  // Get all URL parameters from the current page to preserve them
+  const currentUrlParams = new URLSearchParams(window.location.search);
+  const portalParams = new URLSearchParams();
   
-  // Required parameters
-  let url = targetUrl + `${separator}portal=true`;
-  url += `&username=${encodeURIComponent(player.username || 'Player')}`;
-  url += `&color=${encodeURIComponent(player.color || 'blue')}`;
-  url += `&speed=${encodeURIComponent(player.vehicle.speed || 3)}`;
+  // Always include these core parameters
+  portalParams.set('portal', 'true');
   
-  // Always include ref parameter with the current URL
-  // This allows the receiving game to create a return portal back to us
-  // Use absolute URL including origin to avoid path-based issues
-  url += `&ref=${encodeURIComponent(window.location.origin)}`;
+  // Use name instead of username for compatibility
+  portalParams.set('name', player.username || 'Player');
   
-  // Optional additional parameters
-  if (player.vehicle) {
-    // Get the vehicle velocities
-    const velocity = player.vehicle.velocity || { x: 0, y: 0, z: 0 };
-    url += `&speed_x=${encodeURIComponent(velocity.x || 0)}`;
-    url += `&speed_y=${encodeURIComponent(velocity.y || 0)}`;
-    url += `&speed_z=${encodeURIComponent(velocity.z || 0)}`;
-    
-    // Get the vehicle rotation
-    const rotation = player.vehicle.mesh.rotation || { x: 0, y: 0, z: 0 };
-    url += `&rotation_x=${encodeURIComponent(rotation.x || 0)}`;
-    url += `&rotation_y=${encodeURIComponent(rotation.y || 0)}`;
-    url += `&rotation_z=${encodeURIComponent(rotation.z || 0)}`;
-    
-    // Include vehicle type if available
-    if (player.vehicle.type) {
-      url += `&vehicle=${encodeURIComponent(player.vehicle.type)}`;
+  // Set ref to our origin
+  portalParams.set('ref', window.location.origin);
+  
+  // Copy all other parameters from the original request
+  for (const [key, value] of currentUrlParams.entries()) {
+    // Skip the ones we just set or don't want to forward
+    if (!['portal', 'name', 'username', 'ref'].includes(key)) {
+      portalParams.set(key, value);
     }
   }
   
-  // Add avatar URL if available
-  if (player.avatar_url) {
-    url += `&avatar_url=${encodeURIComponent(player.avatar_url)}`;
-  }
+  // Add query parameters to the URL
+  const hasParams = targetUrl.includes('?');
+  const separator = hasParams ? '&' : '?';
   
-  // Add team if available
-  if (player.team) {
-    url += `&team=${encodeURIComponent(player.team)}`;
-  }
-  
-  return url;
+  return targetUrl + separator + portalParams.toString();
 }
 
 /**

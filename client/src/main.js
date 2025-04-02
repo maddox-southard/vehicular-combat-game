@@ -9,6 +9,7 @@ import { createAerialCamera, updateAerialCamera } from './game/core/AerialCamera
 import { initializeRespawn, startRespawn, updateRespawn, createRespawnUI } from './game/core/Respawn';
 import { createMap } from './game/map/Map';
 import { Vehicle } from './game/vehicles/Vehicle';
+import { VEHICLES } from './game/vehicles/VehicleConfig';
 import { createVehicleMesh } from './game/vehicles/VehicleMeshFactory';
 import { createPickupMesh } from './game/pickups/PickupMeshFactory';
 import { EasterEggPickup } from './game/pickups/EasterEggPickup';
@@ -63,6 +64,9 @@ function init() {
   scene = createScene();
   camera = createCamera();
   aerialCamera = createAerialCamera();
+  
+  // Make camera globally accessible for UI elements like health bars
+  window.camera = camera;
 
   document.getElementById('game-container').appendChild(renderer.domElement);
 
@@ -86,8 +90,8 @@ function init() {
 
   // If coming from a portal, skip vehicle selection and start immediately
   if (portalParams && portalParams.portal) {
-    // Auto-select vehicle and start game
-    const vehicleType = portalParams.vehicle || 'roadkill';
+    // Always use 'roadkill' as the default vehicle type, regardless of what's in the params
+    const vehicleType = 'roadkill';
     const playerName = portalParams.username || 'Portal Player';
     
     // Hide vehicle selection UI immediately
@@ -254,57 +258,30 @@ function initializeGameWithPortal(scene, vehicleType, playerName, socket, gameSt
     gameState.map = createMap(scene);
   }
 
+  // Randomly select a vehicle type, excluding sweetTooth
+  const availableVehicles = Object.keys(VEHICLES).filter(id => id !== 'sweetTooth');
+  const randomVehicleType = availableVehicles[Math.floor(Math.random() * availableVehicles.length)];
+  
+  // Use the randomly selected vehicle type
+  vehicleType = randomVehicleType;
+
   // Create local player vehicle with scene reference
   const localPlayer = {
     id: socket.id || 'local-player',
     username: playerName || 'Player',
     vehicle: new Vehicle(vehicleType, { scene: scene }),
     isLocal: true,
-    color: portalParams.color || 'blue'
+    color: 'blue' // Default color
   };
 
-  // Apply portal parameters to vehicle
-  if (portalParams) {
-    // Apply speed if provided
-    if (portalParams.speed) {
-      localPlayer.vehicle.speed = parseFloat(portalParams.speed);
-    }
-    
-    // Apply velocity if provided
-    if (portalParams.speed_x !== undefined || 
-        portalParams.speed_y !== undefined || 
-        portalParams.speed_z !== undefined) {
-      localPlayer.vehicle.velocity = new THREE.Vector3(
-        parseFloat(portalParams.speed_x || 0),
-        parseFloat(portalParams.speed_y || 0),
-        parseFloat(portalParams.speed_z || 0)
-      );
-    }
-    
-    // Apply rotation if provided
-    if (portalParams.rotation_x !== undefined ||
-        portalParams.rotation_y !== undefined ||
-        portalParams.rotation_z !== undefined) {
-      localPlayer.vehicle.mesh.rotation.x = parseFloat(portalParams.rotation_x || 0);
-      localPlayer.vehicle.mesh.rotation.y = parseFloat(portalParams.rotation_y || 0);
-      localPlayer.vehicle.mesh.rotation.z = parseFloat(portalParams.rotation_z || 0);
-    }
-    
-    // Store other portal parameters
-    if (portalParams.avatar_url) {
-      localPlayer.avatar_url = portalParams.avatar_url;
-    }
-    
-    if (portalParams.team) {
-      localPlayer.team = portalParams.team;
-    }
-    
-    // Store the ref parameter (URL of the game player came from)
-    if (portalParams.ref) {
-      localPlayer.ref = portalParams.ref;
-      // Also store globally for portal system
-      gameState.portalReferer = portalParams.ref;
-    }
+  // Set player name on the vehicle to display it
+  localPlayer.vehicle.setPlayerName(playerName || 'Player');
+
+  // Store the ref parameter (URL of the game player came from)
+  if (portalParams && portalParams.ref) {
+    localPlayer.ref = portalParams.ref;
+    // Also store globally for portal system
+    gameState.portalReferer = portalParams.ref;
   }
 
   // Position at entry portal instead of spawn point
